@@ -1,0 +1,5 @@
+services:
+  transaction_server:
+    build: ./transaction_server
+    ports:
+      - "8000:5000"
