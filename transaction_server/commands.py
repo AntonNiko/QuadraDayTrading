@@ -2,10 +2,11 @@
 This blueprint provides an API to process all user commands specified in:
 https://www.ece.uvic.ca/~seng468/ProjectWebSite/Commands.html 
 '''
+from db import DB
 from flask import Blueprint, request
 
+db = DB()
 bp = Blueprint('commands', __name__, url_prefix='/commands')
-
 RESPONSE_TEMPLATE = {'status': None}
 
 @bp.route('/add', methods=['GET'])
