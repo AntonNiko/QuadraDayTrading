@@ -6,9 +6,9 @@ https://www.ece.uvic.ca/~seng468/ProjectWebSite/Commands.html
 from flask import Blueprint, jsonify, request
 from pymongo.errors import ServerSelectionTimeoutError
 from transaction_server.db import DB
+from transaction_server.quoteserver_client import QuoteServerClient
 
 bp = Blueprint('commands', __name__, url_prefix='/commands')
-RESPONSE_TEMPLATE = {'status': None}
 
 @bp.route('/add', methods=['GET'])
 def add():
@@ -50,11 +50,32 @@ def add():
 
 @bp.route('/quote', methods=['GET'])
 def quote():
-    # TODO for 1 user workload
-    db = DB()
-    # print('Result: {}'.format(db.does_account_exist('user1')))
+    '''
+    Get the current quote for the stock for the specified user.
 
-    return jsonify({'status': 'success', 'message': str(db.does_account_exist('user1'))})
+    Pre-conditions:
+        None
+    Post-conditions:
+        The current price of the specified stock is displayed to the user
+    '''
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+        assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+        return jsonify(response)
+
+    price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'])
+
+    response['status'] = 'success'
+    response['price'] = price
+    response['symbol'] = symbol
+    response['username'] = username
+    return jsonify(response)
 
 @bp.route('/buy', methods=['GET'])
 def buy():
