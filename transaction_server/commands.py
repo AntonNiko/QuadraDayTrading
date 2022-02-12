@@ -4,7 +4,7 @@ This blueprint provides an API to process all user commands specified in:
 https://www.ece.uvic.ca/~seng468/ProjectWebSite/Commands.html 
 '''
 from flask import Blueprint, jsonify, request
-from pymongo.errors import ServerSelectionTimeoutError
+import time
 from transaction_server.db import DB
 from transaction_server.quoteserver_client import QuoteServerClient
 
@@ -79,8 +79,55 @@ def quote():
 
 @bp.route('/buy', methods=['GET'])
 def buy():
-    # TODO for 1 user workload
-    pass
+    '''
+    Buy the dollar amount of the stock for the specified user at the current price. 
+
+    Pre-conditions:
+        The user's account must be greater or equal to the amount of the purchase. 
+    Post-conditions:
+        The user is asked to confirm or cancel the transaction
+    '''
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+        assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
+        assert 'amount' in args, 'amount parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+        return jsonify(response)
+
+    # Ensure account exists and balance is sufficient.
+    db = DB()
+    userid = args['userid']
+    stocksymbol = args['stocksymbol']
+    amount = float(args['amount'])
+
+    if not db.does_account_exist(userid):
+        response['status'] = 'failure'
+        response['message'] = 'Account does not exist.'
+        return jsonify(response)
+
+    # Get account balance
+    balance = db.get_account_details(userid)['balance']
+    if balance < amount:
+        response['status'] = 'failure'
+        response['message'] = 'Not enough money in account to buy.'
+        return jsonify(response)
+
+    # Add transaction as pending confirmation from user.
+    # TODO: Replace with Redis?
+    # Delete any previous pending transactions
+    if db.get_pending_transaction(userid):
+        db.delete_pending_transaction(userid)
+    db.add_pending_transaction(userid, stocksymbol, amount, time.time())
+    db.close_connection()
+
+    response['status'] = 'success'
+    response['message'] = 'Successfully registered pending transaction. Confirm buy within 60 seconds.'
+    return jsonify(response)
 
 @bp.route('/commit_buy', methods=['GET'])
 def commit_buy():
