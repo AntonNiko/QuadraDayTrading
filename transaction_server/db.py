@@ -1,11 +1,14 @@
+#!/usr/bin/env python3
 from pymongo import MongoClient
 
-HOST = '127.0.0.1'
-DB_PORT = 27018
+HOST = 'db'
+DB_PORT = 27017
+USERNAME = 'root'
+PASSWORD = 'rootpassword'
 
 class DB():
     def __init__(self):
-        self.client = MongoClient(host=HOST, port=DB_PORT)
+        self.client = MongoClient(host=HOST, port=DB_PORT) # , username=USERNAME, password=PASSWORD
         self.db = self.client.day_trading
 
     def does_account_exist(self, user_id):
@@ -16,14 +19,22 @@ class DB():
         assert type(user_id) == str
 
         result = self.db.accounts.find_one({"userid": user_id})
-        print(result)
+        if result is None:
+            return False
+        return True
 
 
     def create_account(self, user_id):
         '''
         Create an account with specified user_id. If account already exsits, raise
-        exception. If successful, newly created account has balance 0.
+        exception. If successful, newly created account has balance 0. Returns inserted 
+        object ID
         '''
+        assert type(user_id) == str
+
+        insert_one_result = self.db.accounts.insert_one({'userid': user_id, 'balance': 0.0})
+        return insert_one_result.inserted_id
+
 
     def add_money_to_account(self, user_id, amount):
         '''
@@ -32,4 +43,8 @@ class DB():
         assert type(user_id) == str
         assert type(amount) == float
 
-        # transaction_id = self.db.accounts.
+        update_result = self.db.accounts.update_one({'userid': user_id}, {'$inc': {'balance': amount}})
+        return update_result.matched_count, update_result.modified_count
+
+    def close_connection(self):
+        self.client.close()

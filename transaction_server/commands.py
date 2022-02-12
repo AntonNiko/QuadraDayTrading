@@ -1,17 +1,17 @@
+#!/usr/bin/env python3
 '''
 This blueprint provides an API to process all user commands specified in:
 https://www.ece.uvic.ca/~seng468/ProjectWebSite/Commands.html 
 '''
-from db import DB
-from flask import Blueprint, request
+from flask import Blueprint, jsonify, request
+from pymongo.errors import ServerSelectionTimeoutError
+from transaction_server.db import DB
 
-db = DB()
 bp = Blueprint('commands', __name__, url_prefix='/commands')
 RESPONSE_TEMPLATE = {'status': None}
 
 @bp.route('/add', methods=['GET'])
 def add():
-    # TODO for 1 user workload
     '''
 	Add the given amount of money to the user's account. GET parameters are:
         userid: Username
@@ -22,25 +22,39 @@ def add():
     Post-conditions:
         The user's account is increased by the amount of money specified
     '''
-    response = RESPONSE_TEMPLATE.copy()
+    response = {'status': None}
     args = dict(request.args)
-    
+
     try:
         assert 'userid' in args, 'userid parameter not provided'
         assert 'amount' in args, 'amount parameter not provided'
+
+        # If account does nto exist, create.
+        user_id = args['userid']
+        amount = float(args['amount'])
+        db = DB()
+        if not db.does_account_exist(user_id):
+            db.create_account(user_id)
+
+        matched_count, modified_count = db.add_money_to_account(user_id, amount)
+        db.close_connection()
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
-        return response
+        return jsonify(response)
 
-    user_id = args['userid']
-    amount = float(args['amount'])
-
+    response['status'] = 'success'
+    response['matched_count'] = matched_count
+    response['modified_count'] = modified_count
+    return jsonify(response)
 
 @bp.route('/quote', methods=['GET'])
 def quote():
     # TODO for 1 user workload
-    pass
+    db = DB()
+    # print('Result: {}'.format(db.does_account_exist('user1')))
+
+    return jsonify({'status': 'success', 'message': str(db.does_account_exist('user1'))})
 
 @bp.route('/buy', methods=['GET'])
 def buy():
