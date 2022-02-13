@@ -26,12 +26,12 @@ class DB():
     def create_account(self, user_id):
         '''
         Create an account with specified user_id. If account already exsits, raise
-        exception. If successful, newly created account has balance 0. Returns inserted 
-        object ID
+        exception. If successful, newly created account has balance 0, and no stocks held. 
+        Returns inserted object ID
         '''
         assert type(user_id) == str
 
-        insert_one_result = self.db.accounts.insert_one({'userid': user_id, 'balance': 0.0})
+        insert_one_result = self.db.accounts.insert_one({'userid': user_id, 'balance': 0.0, 'stocks': {}})
         return insert_one_result.inserted_id
 
     def add_money_to_account(self, user_id, amount):
@@ -43,6 +43,28 @@ class DB():
 
         update_result = self.db.accounts.update_one({'userid': user_id}, {'$inc': {'balance': amount}})
         return update_result.matched_count, update_result.modified_count
+
+    def remove_money_from_account(self, user_id, amount):
+        '''
+        Removes the specified amount of money from user_id's account.
+        '''
+        assert type(user_id) == str
+        assert type(amount) == float
+        
+        update_result = self.db.accounts.update_one({'userid': user_id}, {'$inc': {'balance': -amount}})
+        return update_result.matched_count, update_result.modified_count
+
+    def increase_stock_amount(self, user_id, stock_symbol, amount):
+        '''
+        Increase amount of stock of specified symbol present in user_id's
+        account.
+        '''
+        assert type(user_id) == str
+        assert type(stock_symbol) == str
+        assert type(amount) == float
+
+        # TODO
+
 
     def get_account_details(self, user_id):
         '''
@@ -89,7 +111,7 @@ class DB():
         result = self.db.pending_transactions.find_one({'userid': user_id, 'tx_type': tx_type})
         return result
 
-    def delete_pending_transaction(self, user_id):
+    def delete_pending_transaction(self, user_id, tx_type):
         '''
         Deletes the pending transaction associated with the user ID, fi one 
         exists.

@@ -120,8 +120,8 @@ def buy():
     # Add transaction as pending confirmation from user.
     # TODO: Replace with Redis?
     # Delete any previous pending transactions
-    if db.get_pending_transaction(userid):
-        db.delete_pending_transaction(userid)
+    if db.get_pending_transaction(userid, 'BUY'):
+        db.delete_pending_transaction(userid, 'BUY')
     db.add_pending_transaction(userid, 'BUY', stocksymbol, amount, time.time())
     db.close_connection()
 
@@ -151,7 +151,32 @@ def commit_buy():
         return jsonify(response)
 
     # Ensure latest buy command is less than 60 seconds old.
+    db = DB()
+    userid = args['userid']
 
+    pending_transaction = db.get_pending_transaction(userid, 'BUY')
+    if not pending_transaction:
+        response['status'] = 'failure'
+        response['message'] = 'No pending BUY transaction found.'
+        return jsonify(response)
+
+    original_timestamp = pending_transaction['timestamp']
+    current_timestamp = time.time()
+    if (current_timestamp - original_timestamp) > 60:
+        response['status'] = 'failure'
+        response['message'] = 'Most recent BUY command is more than 60 seconds old.'
+        return jsonify(response)
+
+    # Reduce account balance by specified amount
+    matched_count, modified_count = db.add_money_to_account(userid, pending_transaction['amount'])
+    assert matched_count == 1
+    assert modified_count == 1
+
+    # Increase account amount of stock owned
+    
+
+    db.close_connection()
+    
 
 @bp.route('/cancel_buy', methods=['GET'])
 def cancel_buy():
