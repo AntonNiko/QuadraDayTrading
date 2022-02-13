@@ -64,27 +64,29 @@ class DB():
         insert_one_result = self.db.logs.insert_one(log)
         return insert_one_result.inserted_id
 
-    def add_pending_transaction(self, user_id, stock_symbol, amount, unix_timestamp):
+    def add_pending_transaction(self, user_id, tx_type, stock_symbol, amount, unix_timestamp):
         '''
         Adds the provided transaction as a pending transaction the user
         needs to confirm.
         '''
         assert type(user_id) == str
+        assert type(tx_type) in ['BUY', 'SELL']
         assert type(stock_symbol) == str
         assert type(amount) == float
         assert type(unix_timestamp) == float
         
-        document_to_insert = {'userid': user_id, 'stock_symbol': stock_symbol, 'amount': amount, 'timestamp': unix_timestamp}
+        document_to_insert = {'userid': user_id, 'tx_type': tx_type, 'stock_symbol': stock_symbol, 'amount': amount, 'timestamp': unix_timestamp}
         insert_one_result = self.db.pending_transactions.insert_one(document_to_insert)
         return insert_one_result.inserted_id
 
-    def get_pending_transaction(self, user_id):
+    def get_pending_transaction(self, user_id, tx_type):
         '''
         Returns the pending transaciton, if one exists.
         '''
         assert type(user_id) == str
+        assert type(tx_type) in ['BUY', 'SELL']
 
-        result = self.db.pending_transactions.find_one({'userid': user_id})
+        result = self.db.pending_transactions.find_one({'userid': user_id, 'tx_type': tx_type})
         return result
 
     def delete_pending_transaction(self, user_id):
@@ -94,7 +96,7 @@ class DB():
         '''
         assert type(user_id) == str
 
-        delete_result = self.db.pending_transactions.delete_one({'userid': user_id})
+        delete_result = self.db.pending_transactions.delete_one({'userid': user_id, 'tx_type': tx_type})
         return delete_result.deleted_count
 
     def close_connection(self):

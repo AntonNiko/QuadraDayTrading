@@ -122,7 +122,7 @@ def buy():
     # Delete any previous pending transactions
     if db.get_pending_transaction(userid):
         db.delete_pending_transaction(userid)
-    db.add_pending_transaction(userid, stocksymbol, amount, time.time())
+    db.add_pending_transaction(userid, 'BUY', stocksymbol, amount, time.time())
     db.close_connection()
 
     response['status'] = 'success'
@@ -131,8 +131,27 @@ def buy():
 
 @bp.route('/commit_buy', methods=['GET'])
 def commit_buy():
-    # TODO for 1 user workload
-    pass
+    '''
+	Commits the most recently executed BUY command.
+
+    Pre-conditions:
+        The user must have executed a BUY command within the previous 60 seconds.
+    Post-conditions:
+        (a) The user's cash account is decreased by the amount used to purchase the stock
+        (b) the user's account for the given stock is increased by the purchase amount
+    '''
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+        return jsonify(response)
+
+    # Ensure latest buy command is less than 60 seconds old.
+
 
 @bp.route('/cancel_buy', methods=['GET'])
 def cancel_buy():
