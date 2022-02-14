@@ -111,7 +111,7 @@ def buy():
         return jsonify(response)
 
     # Get account balance
-    balance = db.get_account_details(userid)['balance']
+    balance = db.get_account(userid)['balance']
     if balance < amount:
         response['status'] = 'failure'
         response['message'] = 'Not enough money in account to buy.'
@@ -237,18 +237,164 @@ def cancel_buy():
 
 @bp.route('/sell', methods=['GET'])
 def sell():
-    # TODO for 1 user workload
-    pass
+    '''
+    Sell the specified dollar mount of the stock currently held by the specified user at the current price.
+
+    Pre-conditions:
+        The user's account for the given stock must be greater than or equal to the amount being sold.
+    Post-conditions:
+        The user is asked to confirm or cancel the given transaction
+    '''
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+        assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
+        assert 'amount' in args, 'amount parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+        return jsonify(response)
+
+    # Ensure account exists and user owns enough stock to sell.
+    db = DB()
+    userid = args['userid']
+    stocksymbol = args['stocksymbol']
+    amount = float(args['amount'])
+
+    if not db.does_account_exist(userid):
+        response['status'] = 'failure'
+        response['message'] = 'Account does not exist.'
+        return jsonify(response)
+
+    # Ensure user owns sufficient amount of stock
+    user_stocks = db.get_account(userid)['stocks']
+    if stocksymbol not in user_stocks:
+        response['status'] = 'failure'
+        response['message'] = 'User does not own any {} stock'.format(stocksymbol)
+        return jsonify(response)
+
+    if amount > user_stocks[stocksymbol]:
+        response['status'] = 'failure'
+        response['message'] = 'Not enough stock owned to sell.'
+        return jsonify(response)
+
+    # Add transaction as pending confirmation from user.
+    # TODO: Replace with Redis?
+    # Delete any previous pending transactions
+    if db.get_pending_transaction(userid, 'SELL'):
+        db.delete_pending_transaction(userid, 'SELL')
+    db.add_pending_transaction(userid, 'SELL', stocksymbol, amount, time.time())
+    db.close_connection()
+
+    response['status'] = 'success'
+    response['message'] = 'Successfully registered pending transaction. Confirm sell within 60 seconds.'
+    return jsonify(response)
 
 @bp.route('/commit_sell', methods=['GET'])
 def commit_sell():
-    # TODO for 1 user workload
-    pass
+    '''
+	Commits the most recently executed SELL command
+
+    Pre-conditions:
+        The user must have executed a SELL command within the previous 60 seconds
+    Post-conditions:
+        (a) the user's account for the given stock is decremented by the sale amount
+        (b) the user's cash account is increased by the sell amount
+    '''
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+        return jsonify(response)
+
+    # Ensure latest sell command exists and is less than 60 seconds old.
+    db = DB()
+    userid = args['userid']
+
+    pending_transaction = db.get_pending_transaction(userid, 'SELL')
+    if not pending_transaction:
+        response['status'] = 'failure'
+        response['message'] = 'No pending SELL transaction found.'
+        return jsonify(response)
+
+    original_timestamp = pending_transaction['timestamp']
+    stock_symbol = pending_transaction['stock_symbol']
+    amount = pending_transaction['amount']
+
+    current_timestamp = time.time()
+    if (current_timestamp - original_timestamp) > 60:
+        response['status'] = 'failure'
+        response['message'] = 'Most recent SELL command is more than 60 seconds old.'
+        return jsonify(response)
+
+    # Delete pending transaction
+    deleted_count = db.delete_pending_transaction(userid, 'SELL')
+    assert deleted_count == 1
+
+    # Decrease account amount of stock owned
+    portfolio_matched_count, portfolio_modified_count = db.decrease_stock_portfolio_amount(userid, stock_symbol, amount)
+    db.close_connection()
+
+    # Increase account balance by specified amount
+    matched_count, modified_count = db.add_money_to_account(userid, amount)
+    assert matched_count == 1
+    assert modified_count == 1
+
+    response['status'] = 'success'
+    response['message'] = 'Successfully commited SELL transaction for {} for amount {}'.format(stock_symbol, amount)
+    response['matched_count'] = portfolio_matched_count
+    response['modified_count'] = portfolio_modified_count
+    return jsonify(response)
 
 @bp.route('/cancel_sell', methods=['GET'])
 def cancel_sell():
-    # TODO for 1 user workload
-    pass
+    '''
+	Cancels the most recently executed SELL Command
+
+    Pre-conditions:
+        The user must have executed a SELL command within the previous 60 seconds
+    Post-conditions:
+        The last SELL command is canceled and any allocated system resources are reset and released.
+    '''
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+        return jsonify(response)
+
+    # Ensure latest sell command exists and is less than 60 seconds old.
+    db = DB()
+    userid = args['userid']
+
+    pending_transaction = db.get_pending_transaction(userid, 'SELL')
+    if not pending_transaction:
+        response['status'] = 'failure'
+        response['message'] = 'No pending SELL transaction found.'
+        return jsonify(response)
+
+    original_timestamp = pending_transaction['timestamp']
+
+    current_timestamp = time.time()
+    if (current_timestamp - original_timestamp) > 60:
+        response['status'] = 'failure'
+        response['message'] = 'Most recent SELL command is more than 60 seconds old.'
+        return jsonify(response)
+
+    # Delete pending SELL transaction such that COMMIT_SELL will not find any pending transactions.
+    deleted_count = db.delete_pending_transaction(userid, 'SELL')
+    response['status'] = 'success'
+    response['message'] = 'Successfully cancelled {} SELL transactions'.format(deleted_count)
+    return jsonify(response)
 
 @bp.route('/set_buy_amount', methods=['GET'])
 def set_buy_amount():

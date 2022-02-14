@@ -18,7 +18,7 @@ class DB():
         '''
         assert type(user_id) == str
 
-        result = self.get_account_details(user_id)
+        result = self.get_account(user_id)
         if result is None:
             return False
         return True
@@ -88,7 +88,7 @@ class DB():
         
         return update_result.matched_count, update_result.modified_count
 
-    def get_account_details(self, user_id):
+    def get_account(self, user_id):
         '''
         Get details for the account specified by the user_id. Returns dict if account found,
         otherwise None.
@@ -98,7 +98,7 @@ class DB():
         result = self.db.accounts.find_one({'userid': user_id})
         return result
 
-    def add_transaction_log(self, log):
+    def add_log(self, log):
         '''
         Appends transaction log to the logs collection. This method does not 
         validate the log format past it being a dictionary.

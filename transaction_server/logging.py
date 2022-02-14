@@ -39,7 +39,7 @@ class Logging():
     @staticmethod
     def __log_transaction(log_dict):
         db = DB()
-        inserted_id = db.add_transaction_log(log_dict)
+        inserted_id = db.add_log(log_dict)
         db.close_connection()
         return inserted_id     
 
