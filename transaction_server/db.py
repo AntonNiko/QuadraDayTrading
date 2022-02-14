@@ -40,6 +40,7 @@ class DB():
         '''
         assert type(user_id) == str
         assert type(amount) == float
+        assert amount >= 0
 
         update_result = self.db.accounts.update_one({'userid': user_id}, {'$inc': {'balance': amount}})
         return update_result.matched_count, update_result.modified_count
@@ -50,11 +51,12 @@ class DB():
         '''
         assert type(user_id) == str
         assert type(amount) == float
+        assert amount >= 0
         
         update_result = self.db.accounts.update_one({'userid': user_id}, {'$inc': {'balance': -amount}})
         return update_result.matched_count, update_result.modified_count
 
-    def increase_stock_amount(self, user_id, stock_symbol, amount):
+    def increase_stock_portfolio_amount(self, user_id, stock_symbol, amount):
         '''
         Increase amount of stock of specified symbol present in user_id's
         account.
@@ -62,9 +64,29 @@ class DB():
         assert type(user_id) == str
         assert type(stock_symbol) == str
         assert type(amount) == float
+        assert amount >= 0
 
-        # TODO
+        update_result = self.db.accounts.update_one({'userid': user_id}, {'$inc': {'stocks.{}'.format(stock_symbol): amount}})
+        return update_result.matched_count, update_result.modified_count
 
+    def decrease_stock_portfolio_amount(self, user_id, stock_symbol, amount):
+        '''
+        Decrease amount of stock of specified symbol present in user_id's
+        account. If amount of specified stock is 0 after decreasing, then unset
+        field for that stock.
+        '''
+        assert type(user_id) == str
+        assert type(stock_symbol) == str
+        assert type(amount) == float
+        assert amount >= 0
+
+        update_result = self.db.accounts.update_one({'userid': user_id}, {'$inc': {'stocks.{}'.format(stock_symbol): -amount}})
+        
+        # If remaining balance 0, unset field.
+        if self.db.accounts.find_one({'userid': user_id})['stocks'][stock_symbol] == 0:
+            self.db.accounts.update_one({'userid': user_id}, {'$unset': {'stocks.{}'.format(stock_symbol): ''}})
+        
+        return update_result.matched_count, update_result.modified_count
 
     def get_account_details(self, user_id):
         '''
@@ -92,7 +114,7 @@ class DB():
         needs to confirm.
         '''
         assert type(user_id) == str
-        assert type(tx_type) in ['BUY', 'SELL']
+        assert tx_type in ['BUY', 'SELL']
         assert type(stock_symbol) == str
         assert type(amount) == float
         assert type(unix_timestamp) == float
@@ -106,7 +128,7 @@ class DB():
         Returns the pending transaciton, if one exists.
         '''
         assert type(user_id) == str
-        assert type(tx_type) in ['BUY', 'SELL']
+        assert tx_type in ['BUY', 'SELL']
 
         result = self.db.pending_transactions.find_one({'userid': user_id, 'tx_type': tx_type})
         return result

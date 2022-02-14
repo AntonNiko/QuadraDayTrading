@@ -150,7 +150,7 @@ def commit_buy():
         response['message'] = str(err)
         return jsonify(response)
 
-    # Ensure latest buy command is less than 60 seconds old.
+    # Ensure latest buy command exists and is less than 60 seconds old.
     db = DB()
     userid = args['userid']
 
@@ -161,27 +161,79 @@ def commit_buy():
         return jsonify(response)
 
     original_timestamp = pending_transaction['timestamp']
+    stock_symbol = pending_transaction['stock_symbol']
+    amount = pending_transaction['amount']
+
     current_timestamp = time.time()
     if (current_timestamp - original_timestamp) > 60:
         response['status'] = 'failure'
         response['message'] = 'Most recent BUY command is more than 60 seconds old.'
         return jsonify(response)
 
+    # Delete pending transaction
+    deleted_count = db.delete_pending_transaction(userid, 'BUY')
+    assert deleted_count == 1
+
     # Reduce account balance by specified amount
-    matched_count, modified_count = db.add_money_to_account(userid, pending_transaction['amount'])
+    matched_count, modified_count = db.remove_money_from_account(userid, amount)
     assert matched_count == 1
     assert modified_count == 1
 
     # Increase account amount of stock owned
-    
-
+    portfolio_matched_count, portfolio_modified_count = db.increase_stock_portfolio_amount(userid, stock_symbol, amount)
     db.close_connection()
+
+    response['status'] = 'success'
+    response['message'] = 'Successfully commited BUY transaction for {} for amount {}'.format(stock_symbol, amount)
+    response['matched_count'] = portfolio_matched_count
+    response['modified_count'] = portfolio_modified_count
+    return jsonify(response)
     
 
 @bp.route('/cancel_buy', methods=['GET'])
 def cancel_buy():
-    # TODO for 1 user workload
-    pass
+    '''
+	Cancels the most recently executed BUY Command
+
+    Pre-conditions:
+        The user must have executed a BUY command within the previous 60 seconds
+    Post-conditions:
+        The last BUY command is canceled and any allocated system resources are reset and released.
+    '''
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+        return jsonify(response)
+
+    # Ensure latest buy command exists and is less than 60 seconds old.
+    db = DB()
+    userid = args['userid']
+
+    pending_transaction = db.get_pending_transaction(userid, 'BUY')
+    if not pending_transaction:
+        response['status'] = 'failure'
+        response['message'] = 'No pending BUY transaction found.'
+        return jsonify(response)
+
+    original_timestamp = pending_transaction['timestamp']
+
+    current_timestamp = time.time()
+    if (current_timestamp - original_timestamp) > 60:
+        response['status'] = 'failure'
+        response['message'] = 'Most recent BUY command is more than 60 seconds old.'
+        return jsonify(response)
+
+    # Delete pending BUY transaction such that COMMIT_BUY will not find any pending transactions.
+    deleted_count = db.delete_pending_transaction(userid, 'BUY')
+    response['status'] = 'success'
+    response['message'] = 'Successfully cancelled {} BUY transactions'.format(deleted_count)
+    return jsonify(response)
+
 
 @bp.route('/sell', methods=['GET'])
 def sell():
