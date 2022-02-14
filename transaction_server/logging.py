@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from enum import Enum
 from transaction_server.db import DB
+import xml.etree.ElementTree as ET
 
 MIN_TIMESTAMP_LIMIT = 1641024000
 MAX_TIMESTAMP_LIMIT = 1651388400
@@ -152,3 +153,14 @@ class Logging():
         assert type(log_dict['command']) == CommandType
 
         return Logging.__log_transaction(log_dict)
+
+    @staticmethod
+    def convert_dicts_to_xml(log_dicts):
+        # TODO finish
+        assert type(log_dicts) == list
+
+        root = ET.Element('log')
+        for log_entry in log_dicts:
+            print(log_entry)
+
+        return ET.tostring(root)

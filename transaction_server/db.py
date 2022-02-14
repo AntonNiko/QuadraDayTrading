@@ -108,6 +108,16 @@ class DB():
         insert_one_result = self.db.logs.insert_one(log)
         return insert_one_result.inserted_id
 
+    def get_logs(self, user_id=None):
+        '''
+        Returns the application's logs. If user_id is specified, returns the logs for
+        that user id. Logs are returned in chronologically sorted order, starting from 
+        the earliest log.
+        '''
+        if not user_id:
+            return list(self.db.logs.find({}).sort({ 'timestamp': 1}))
+        return list(self.db.logs.find({'username': user_id}).sort({ 'timestamp': 1}))
+
     def add_pending_transaction(self, user_id, tx_type, stock_symbol, amount, unix_timestamp):
         '''
         Adds the provided transaction as a pending transaction the user

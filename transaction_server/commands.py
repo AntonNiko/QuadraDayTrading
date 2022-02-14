@@ -6,6 +6,7 @@ https://www.ece.uvic.ca/~seng468/ProjectWebSite/Commands.html
 from flask import Blueprint, jsonify, request
 import time
 from transaction_server.db import DB
+from transaction_server.logging import Logging
 from transaction_server.quoteserver_client import QuoteServerClient
 
 bp = Blueprint('commands', __name__, url_prefix='/commands')
@@ -427,8 +428,50 @@ def cancel_set_sell():
 
 @bp.route('/dumplog', methods=['GET'])
 def dumplog():
-    # TODO for 1 user workload
-    pass
+    '''
+    2 possible parameter combinations:
+
+    1) (userid, filename): Print out the history of the users transactions to the user specified file 
+        Pre-conditions:
+            none
+        Post-conditions:
+            The history of the user's transaction are written to the specified file.
+                
+    2) (filename): Print out to the specified file the complete set of transactions that have occurred in the system.
+        Pre-conditions:
+            Can only be executed from the supervisor (root/administrator) account.
+        Post-conditions:
+            Places a complete log file of all transactions that have occurred in the system into the file specified by filename
+    '''
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'filename' in args, 'filename parameter not provided'
+    except AssertionError as err:
+        response['stauts'] = 'failure'
+        response['message'] = str(err)
+        return jsonify(response)
+
+    # Query logs
+    db = DB()
+    if 'userid' in args:
+        logs = db.get_logs(args['userid'])
+    else:
+        logs = db.get_logs()
+    db.close_connection()
+
+    # Convert logs to XML (Assume logs have been validated when entered.)
+    logs_xml = Logging.convert_dicts_to_xml(logs)
+    # TODO complete
+
+    # Write logs to file.
+    with open(args['filename'], 'w') as f:
+        f.writelines(logs_xml)
+
+    response['status'] = 'success'
+    response['message'] = 'Wrote logs to {}'.format(args['filename'])
+    return jsonify(response) 
 
 @bp.route('/display_summary', methods=['GET'])
 def display_summary():
