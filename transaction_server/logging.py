@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 from enum import Enum
+import socket
+import time
 from transaction_server.db import DB
 import xml.etree.ElementTree as ET
 
 MIN_TIMESTAMP_LIMIT = 1641024000000
 MAX_TIMESTAMP_LIMIT = 1651388400000
+SERVER_NAME = socket.gethostname()
 
 # Logging functionality for transaction server. Validation is performed
 # according to the following:
@@ -46,140 +49,108 @@ def is_stock_symbol(symbol):
     return len(symbol) <= 3
 
 class Logging():
+    '''
+    Every log has a timestamp and server name that this 
+    class fetches every time.
+    '''
+
     @staticmethod
-    def __log_transaction(log_dict):
+    def __log_transaction(log_type, log_params):
+        # Ensure log timestamp, server, and type recorded
+        log_params['logtype'] = log_type
+        log_params['server'] = SERVER_NAME
+        log_params['timestamp'] = LogType.USER_COMMAND.value
+
         db = DB()
-        inserted_id = db.add_log(log_dict)
+        inserted_id = db.add_log(log_params)
         db.close_connection()
         return inserted_id     
 
     @staticmethod
-    def log_user_command(log_dict):
+    def log_user_command(**log_params):
         # Validate format is correct, then record to database.
-        assert 'timestamp' in log_dict
-        assert 'server' in log_dict
-        assert 'transactionNum' in log_dict
-        assert 'command' in log_dict
+        assert 'transactionNum' in log_params
+        assert 'command' in log_params
 
-        assert is_unix_timestamp_in_range(log_dict['timestamp'])
-        assert type(log_dict['server']) == str
-        assert type(log_dict['transactionNum']) == int
-        assert log_dict['transactionNum'] > 0
-        assert type(log_dict['command']) == CommandType
+        assert type(log_params['transactionNum']) == int
+        assert log_params['transactionNum'] > 0
+        assert type(log_params['command']) == CommandType
 
-        # Ensure log type recorded
-        log_dict['logtype'] = LogType.USER_COMMAND.value
-
-        return Logging.__log_transaction(log_dict)
+        return Logging.__log_transaction(LogType.USER_COMMAND.value, log_params)
 
     @staticmethod
-    def log_quote_server_hit(log_dict):
+    def log_quote_server_hit(**log_params):
         # Validate format is correct, then record to database.
-        assert 'timestamp' in log_dict
-        assert 'server' in log_dict
-        assert 'transactionNum' in log_dict
-        assert 'price' in log_dict
-        assert 'stockSymbol' in log_dict
-        assert 'username' in log_dict
-        assert 'quoteServerTime' in log_dict
-        assert 'cryptokey' in log_dict
+        assert 'transactionNum' in log_params
+        assert 'price' in log_params
+        assert 'stockSymbol' in log_params
+        assert 'username' in log_params
+        assert 'quoteServerTime' in log_params
+        assert 'cryptokey' in log_params
 
-        assert is_unix_timestamp_in_range(log_dict['timestamp'])
-        assert type(log_dict['server']) == str
-        assert type(log_dict['transactionNum']) == int
-        assert log_dict['transactionNum'] > 0
-        assert type(log_dict['price']) == float
-        assert is_stock_symbol(log_dict['stockSymbol'])
-        assert type(log_dict['username']) == str
-        assert type(log_dict['quoteServerTime']) == int
-        assert type(log_dict['cryptokey']) == str
+        assert type(log_params['transactionNum']) == int
+        assert log_params['transactionNum'] > 0
+        assert type(log_params['price']) == float
+        assert is_stock_symbol(log_params['stockSymbol'])
+        assert type(log_params['username']) == str
+        assert type(log_params['quoteServerTime']) == int
+        assert type(log_params['cryptokey']) == str
 
-        # Ensure log type recorded
-        log_dict['logtype'] = LogType.QUOTE_SERVER.value
-
-        return Logging.__log_transaction(log_dict)
+        return Logging.__log_transaction(LogType.QUOTE_SERVER.value, log_params)
 
     @staticmethod
-    def log_account_transaction(log_dict):
+    def log_account_transaction(**log_params):
         # Validate format is correct, then record to database.
-        assert 'timestamp' in log_dict
-        assert 'server' in log_dict
-        assert 'transactionNum' in log_dict
-        assert 'action' in log_dict
-        assert 'username' in log_dict
-        assert 'funds' in log_dict
+        assert 'transactionNum' in log_params
+        assert 'action' in log_params
+        assert 'username' in log_params
+        assert 'funds' in log_params
 
-        assert is_unix_timestamp_in_range(log_dict['timestamp'])
-        assert type(log_dict['server']) == str
-        assert type(log_dict['transactionNum']) == int
-        assert log_dict['transactionNum'] > 0
-        assert type(log_dict['action']) == str
-        assert type(log_dict['username']) == str
-        assert type(log_dict['funds']) == float
+        assert type(log_params['transactionNum']) == int
+        assert log_params['transactionNum'] > 0
+        assert type(log_params['action']) == str
+        assert type(log_params['username']) == str
+        assert type(log_params['funds']) == float
 
-        # Ensure log type recorded
-        log_dict['logtype'] = LogType.ACCOUNT_TRANSACTION.value
-
-        return Logging.__log_transaction(log_dict)       
+        return Logging.__log_transaction(LogType.ACCOUNT_TRANSACTION.value, log_params)       
 
 # TODO: All 3 calls below are the same, centralize logic.
 
     @staticmethod
-    def log_system_event(log_dict):
+    def log_system_event(**log_params):
         # Validate format is correct, then record to database.
-        assert 'timestamp' in log_dict
-        assert 'server' in log_dict
-        assert 'transactionNum' in log_dict       
-        assert 'command' in log_dict 
+        assert 'transactionNum' in log_params       
+        assert 'command' in log_params 
 
-        assert is_unix_timestamp_in_range(log_dict['timestamp'])
-        assert type(log_dict['server']) == str
-        assert type(log_dict['transactionNum']) == int
-        assert log_dict['transactionNum'] > 0
-        assert type(log_dict['command']) == CommandType
+        assert type(log_params['transactionNum']) == int
+        assert log_params['transactionNum'] > 0
+        assert type(log_params['command']) == CommandType
 
-        # Ensure log type recorded
-        log_dict['logtype'] = LogType.SYSTEM_EVENT.value
-
-        return Logging.__log_transaction(log_dict)  
+        return Logging.__log_transaction(LogType.SYSTEM_EVENT.value, log_params)  
 
     @staticmethod
-    def log_error_event(log_dict):
+    def log_error_event(**log_params):
         # Validate format is correct, then record to database.
-        assert 'timestamp' in log_dict
-        assert 'server' in log_dict
-        assert 'transactionNum' in log_dict       
-        assert 'command' in log_dict 
+        assert 'transactionNum' in log_params       
+        assert 'command' in log_params 
 
-        assert is_unix_timestamp_in_range(log_dict['timestamp'])
-        assert type(log_dict['server']) == str
-        assert type(log_dict['transactionNum']) == int
-        assert log_dict['transactionNum'] > 0
-        assert type(log_dict['command']) == CommandType
+        assert type(log_params['transactionNum']) == int
+        assert log_params['transactionNum'] > 0
+        assert type(log_params['command']) == CommandType
 
-        # Ensure log type recorded
-        log_dict['logtype'] = LogType.ERROR_EVENT.value
-
-        return Logging.__log_transaction(log_dict) 
+        return Logging.__log_transaction(LogType.ERROR_EVENT.value, log_params) 
 
     @staticmethod
-    def log_debug(log_dict):
+    def log_debug(**log_params):
         # Validate format is correct, then record to database.
-        assert 'timestamp' in log_dict
-        assert 'server' in log_dict
-        assert 'transactionNum' in log_dict       
-        assert 'command' in log_dict 
+        assert 'transactionNum' in log_params       
+        assert 'command' in log_params 
 
-        assert is_unix_timestamp_in_range(log_dict['timestamp'])
-        assert type(log_dict['server']) == str
-        assert type(log_dict['transactionNum']) == int
-        assert log_dict['transactionNum'] > 0
-        assert type(log_dict['command']) == CommandType
+        assert type(log_params['transactionNum']) == int
+        assert log_params['transactionNum'] > 0
+        assert type(log_params['command']) == CommandType
 
-        # Ensure log type recorded
-        log_dict['logtype'] = LogType.DEBUG_EVENT.value
-
-        return Logging.__log_transaction(log_dict)
+        return Logging.__log_transaction(LogType.DEBUG_EVENT.value, log_params)
 
     @staticmethod
     def convert_dicts_to_xml(logs):
@@ -195,4 +166,6 @@ class Logging():
                 if log_field == 'logtype': continue
                 ET.SubElement(xml_log_element, log_field).text = str(log_entry[log_field])
 
-        return ET.ElementTree(xml_root)
+        tree = ET.ElementTree(xml_root)
+        ET.indent(tree, space='\t', level=0)
+        return tree

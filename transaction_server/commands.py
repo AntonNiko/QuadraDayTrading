@@ -6,7 +6,7 @@ https://www.ece.uvic.ca/~seng468/ProjectWebSite/Commands.html
 from flask import Blueprint, jsonify, request
 import time
 from transaction_server.db import DB
-from transaction_server.logging import Logging
+from transaction_server.logging import Logging, CommandType
 from transaction_server.quoteserver_client import QuoteServerClient
 
 # Keep track of transactions for logging purposes.
@@ -45,19 +45,15 @@ def add():
         matched_count, modified_count = db.add_money_to_account(user_id, amount)
 
         # Log as AccountTransactionType with updated balance
-        Logging.log_account_transaction({
-            'timestamp': int(time.time() * 1000), # ms
-            'server': 'test',
-            'transactionNum': tx_num,
-            'action': 'add',
-            'username': user_id,
-            'funds': float(db.get_account(user_id)['balance'])
-        })
+        Logging.log_account_transaction(transactionNum=tx_num, action='add', username=user_id, funds=float(db.get_account(user_id)['balance']))
 
         db.close_connection()
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.ADD, errorMessage=str(err))
         return jsonify(response)
     
     response['status'] = 'success'
@@ -85,9 +81,15 @@ def quote():
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.QUOTE, errorMessage=str(err))
         return jsonify(response)
 
     price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'])
+
+    # Log as QuoteServerType
+    Logging.log_quote_server_hit(transactionNum=tx_num, price=price, stockSymbol=symbol, username=username, quoteServerTime=timestamp, cryptokey=cryptokey)
 
     response['status'] = 'success'
     response['price'] = price
@@ -127,6 +129,9 @@ def buy():
     if not db.does_account_exist(userid):
         response['status'] = 'failure'
         response['message'] = 'Account does not exist.'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.BUY, errorMessage=response['message'])
         return jsonify(response)
 
     # Get account balance
@@ -134,6 +139,9 @@ def buy():
     if balance < amount:
         response['status'] = 'failure'
         response['message'] = 'Not enough money in account to buy.'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.BUY, errorMessage=response['message'])      
         return jsonify(response)
 
     # Add transaction as pending confirmation from user.
@@ -168,6 +176,9 @@ def commit_buy():
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_BUY, errorMessage=response['message'])      
         return jsonify(response)
 
     # Ensure latest buy command exists and is less than 60 seconds old.
@@ -178,6 +189,9 @@ def commit_buy():
     if not pending_transaction:
         response['status'] = 'failure'
         response['message'] = 'No pending BUY transaction found.'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_BUY, errorMessage=response['message'])      
         return jsonify(response)
 
     original_timestamp = pending_transaction['timestamp']
@@ -188,6 +202,9 @@ def commit_buy():
     if (current_timestamp - original_timestamp) > 60:
         response['status'] = 'failure'
         response['message'] = 'Most recent BUY command is more than 60 seconds old.'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_BUY, errorMessage=response['message'])      
         return jsonify(response)
 
     # Delete pending transaction
@@ -200,14 +217,7 @@ def commit_buy():
     assert modified_count == 1
 
     # Log as AccountTransactionType with updated balance
-    Logging.log_account_transaction({
-        'timestamp': int(time.time() * 1000), # ms
-        'server': 'test',
-        'transactionNum': tx_num,
-        'action': 'remove',
-        'username': user_id,
-        'funds': float(db.get_account(user_id)['balance'])
-    })
+    Logging.log_account_transaction(transactionNum=tx_num, action='remove', username=user_id, funds=float(db.get_account(user_id)['balance']))
 
     # Increase account amount of stock owned
     portfolio_matched_count, portfolio_modified_count = db.increase_stock_portfolio_amount(user_id, stock_symbol, amount)
@@ -239,6 +249,9 @@ def cancel_buy():
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_BUY, errorMessage=response['message'])      
         return jsonify(response)
 
     # Ensure latest buy command exists and is less than 60 seconds old.
@@ -249,6 +262,9 @@ def cancel_buy():
     if not pending_transaction:
         response['status'] = 'failure'
         response['message'] = 'No pending BUY transaction found.'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_BUY, errorMessage=response['message'])    
         return jsonify(response)
 
     original_timestamp = pending_transaction['timestamp']
@@ -257,6 +273,9 @@ def cancel_buy():
     if (current_timestamp - original_timestamp) > 60:
         response['status'] = 'failure'
         response['message'] = 'Most recent BUY command is more than 60 seconds old.'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_BUY, errorMessage=response['message'])    
         return jsonify(response)
 
     # Delete pending BUY transaction such that COMMIT_BUY will not find any pending transactions.
@@ -287,6 +306,9 @@ def sell():
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message'])    
         return jsonify(response)
 
     # Ensure account exists and user owns enough stock to sell.
@@ -298,6 +320,9 @@ def sell():
     if not db.does_account_exist(userid):
         response['status'] = 'failure'
         response['message'] = 'Account does not exist.'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message']) 
         return jsonify(response)
 
     # Ensure user owns sufficient amount of stock
@@ -305,11 +330,17 @@ def sell():
     if stocksymbol not in user_stocks:
         response['status'] = 'failure'
         response['message'] = 'User does not own any {} stock'.format(stocksymbol)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message']) 
         return jsonify(response)
 
     if amount > user_stocks[stocksymbol]:
         response['status'] = 'failure'
         response['message'] = 'Not enough stock owned to sell.'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message']) 
         return jsonify(response)
 
     # Add transaction as pending confirmation from user.
@@ -344,6 +375,9 @@ def commit_sell():
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_SELL, errorMessage=response['message']) 
         return jsonify(response)
 
     # Ensure latest sell command exists and is less than 60 seconds old.
@@ -354,6 +388,9 @@ def commit_sell():
     if not pending_transaction:
         response['status'] = 'failure'
         response['message'] = 'No pending SELL transaction found.'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_SELL, errorMessage=response['message']) 
         return jsonify(response)
 
     original_timestamp = pending_transaction['timestamp']
@@ -364,6 +401,9 @@ def commit_sell():
     if (current_timestamp - original_timestamp) > 60:
         response['status'] = 'failure'
         response['message'] = 'Most recent SELL command is more than 60 seconds old.'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_SELL, errorMessage=response['message']) 
         return jsonify(response)
 
     # Delete pending transaction
@@ -380,14 +420,7 @@ def commit_sell():
     assert modified_count == 1
 
     # Log as AccountTransactionType with updated balance
-    Logging.log_account_transaction({
-        'timestamp': int(time.time() * 1000), # ms
-        'server': 'test',
-        'transactionNum': tx_num,
-        'action': 'add',
-        'username': user_id,
-        'funds': float(db.get_account(user_id)['balance'])
-    })
+    Logging.log_account_transaction(transactionNum=tx_num, action='add', username=user_id, funds=float(db.get_account(user_id)['balance']))
 
     response['status'] = 'success'
     response['message'] = 'Successfully commited SELL transaction for {} for amount {}'.format(stock_symbol, amount)
@@ -414,6 +447,9 @@ def cancel_sell():
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SELL, errorMessage=response['message']) 
         return jsonify(response)
 
     # Ensure latest sell command exists and is less than 60 seconds old.
@@ -424,6 +460,9 @@ def cancel_sell():
     if not pending_transaction:
         response['status'] = 'failure'
         response['message'] = 'No pending SELL transaction found.'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SELL, errorMessage=response['message']) 
         return jsonify(response)
 
     original_timestamp = pending_transaction['timestamp']
@@ -432,6 +471,9 @@ def cancel_sell():
     if (current_timestamp - original_timestamp) > 60:
         response['status'] = 'failure'
         response['message'] = 'Most recent SELL command is more than 60 seconds old.'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SELL, errorMessage=response['message']) 
         return jsonify(response)
 
     # Delete pending SELL transaction such that COMMIT_SELL will not find any pending transactions.
@@ -486,6 +528,7 @@ def dumplog():
         Post-conditions:
             Places a complete log file of all transactions that have occurred in the system into the file specified by filename
     '''
+    tx_num = current_tx_num
     response = {'status': None}
     args = dict(request.args)
 
@@ -494,6 +537,9 @@ def dumplog():
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.DUMPLOG, errorMessage=response['message']) 
         return jsonify(response)
 
     # Query logs
@@ -506,11 +552,7 @@ def dumplog():
 
     # Convert logs to XML (Assume logs have been validated when entered.)
     logs_xml = Logging.convert_dicts_to_xml(logs)
-    logs_xml.write('logs/{}'.format(args['filename']))
-
-    # Write logs to file.
-    #with open(args['filename'], 'w') as f:
-    #    f.writelines(logs_xml)
+    logs_xml.write('logs/{}'.format(args['filename']), encoding='utf-8')
 
     response['status'] = 'success'
     response['message'] = 'Wrote logs to {}'.format(args['filename'])
