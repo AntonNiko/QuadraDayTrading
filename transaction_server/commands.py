@@ -9,6 +9,10 @@ from transaction_server.db import DB
 from transaction_server.logging import Logging
 from transaction_server.quoteserver_client import QuoteServerClient
 
+# Keep track of transactions for logging purposes.
+# TODO: Ensure it is thread-safe.
+current_tx_num = 1
+
 bp = Blueprint('commands', __name__, url_prefix='/commands')
 
 @bp.route('/add', methods=['GET'])
@@ -23,6 +27,7 @@ def add():
     Post-conditions:
         The user's account is increased by the amount of money specified
     '''
+    tx_num = current_tx_num
     response = {'status': None}
     args = dict(request.args)
 
@@ -38,11 +43,23 @@ def add():
             db.create_account(user_id)
 
         matched_count, modified_count = db.add_money_to_account(user_id, amount)
-        db.close_connection()
+
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
         return jsonify(response)
+
+    # Log as AccountTransactionType with updated balance
+    Logging.log_account_transaction({
+        'timestamp': int(time.time() * 1000), # ms
+        'server': 'test',
+        'transactionNum': tx_num,
+        'action': 'add',
+        'username': user_id,
+        'funds': float(db.get_account(user_id)['balance'])
+    })
+    
+    db.close_connection()
 
     response['status'] = 'success'
     response['matched_count'] = matched_count
@@ -59,6 +76,7 @@ def quote():
     Post-conditions:
         The current price of the specified stock is displayed to the user
     '''
+    tx_num = current_tx_num
     response = {'status': None}
     args = dict(request.args)
 
@@ -88,6 +106,7 @@ def buy():
     Post-conditions:
         The user is asked to confirm or cancel the transaction
     '''
+    tx_num = current_tx_num
     response = {'status': None}
     args = dict(request.args)
 
@@ -141,6 +160,7 @@ def commit_buy():
         (a) The user's cash account is decreased by the amount used to purchase the stock
         (b) the user's account for the given stock is increased by the purchase amount
     '''
+    tx_num = current_tx_num
     response = {'status': None}
     args = dict(request.args)
 
@@ -201,6 +221,7 @@ def cancel_buy():
     Post-conditions:
         The last BUY command is canceled and any allocated system resources are reset and released.
     '''
+    tx_num = current_tx_num
     response = {'status': None}
     args = dict(request.args)
 
@@ -246,6 +267,7 @@ def sell():
     Post-conditions:
         The user is asked to confirm or cancel the given transaction
     '''
+    tx_num = current_tx_num
     response = {'status': None}
     args = dict(request.args)
 
@@ -304,6 +326,7 @@ def commit_sell():
         (a) the user's account for the given stock is decremented by the sale amount
         (b) the user's cash account is increased by the sell amount
     '''
+    tx_num = current_tx_num
     response = {'status': None}
     args = dict(request.args)
 
@@ -363,6 +386,7 @@ def cancel_sell():
     Post-conditions:
         The last SELL command is canceled and any allocated system resources are reset and released.
     '''
+    tx_num = current_tx_num
     response = {'status': None}
     args = dict(request.args)
 
@@ -463,11 +487,11 @@ def dumplog():
 
     # Convert logs to XML (Assume logs have been validated when entered.)
     logs_xml = Logging.convert_dicts_to_xml(logs)
-    # TODO complete
+    logs_xml.write('logs/{}'.format(args['filename']))
 
     # Write logs to file.
-    with open(args['filename'], 'w') as f:
-        f.writelines(logs_xml)
+    #with open(args['filename'], 'w') as f:
+    #    f.writelines(logs_xml)
 
     response['status'] = 'success'
     response['message'] = 'Wrote logs to {}'.format(args['filename'])

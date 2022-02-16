@@ -3,12 +3,21 @@ from enum import Enum
 from transaction_server.db import DB
 import xml.etree.ElementTree as ET
 
-MIN_TIMESTAMP_LIMIT = 1641024000
-MAX_TIMESTAMP_LIMIT = 1651388400
+MIN_TIMESTAMP_LIMIT = 1641024000000
+MAX_TIMESTAMP_LIMIT = 1651388400000
 
 # Logging functionality for transaction server. Validation is performed
 # according to the following:
 # https://www.ece.uvic.ca/~seng468/ProjectWebSite/logfile_xsd.html 
+
+
+class LogType(Enum):
+    USER_COMMAND = 'userCommand'
+    QUOTE_SERVER = 'quoteServer'
+    ACCOUNT_TRANSACTION = 'accountTransaction'
+    SYSTEM_EVENT = 'systemEvent'
+    ERROR_EVENT = 'errorEvent'
+    DEBUG_EVENT = 'debugEvent'
 
 class CommandType(Enum):
     ADD = 'ADD'
@@ -58,6 +67,9 @@ class Logging():
         assert log_dict['transactionNum'] > 0
         assert type(log_dict['command']) == CommandType
 
+        # Ensure log type recorded
+        log_dict['logtype'] = LogType.USER_COMMAND.value
+
         return Logging.__log_transaction(log_dict)
 
     @staticmethod
@@ -78,9 +90,12 @@ class Logging():
         assert log_dict['transactionNum'] > 0
         assert type(log_dict['price']) == float
         assert is_stock_symbol(log_dict['stockSymbol'])
-        assert type('username') == str
-        assert type('quoteServerTime') == int
-        assert type('cryptokey') == str
+        assert type(log_dict['username']) == str
+        assert type(log_dict['quoteServerTime']) == int
+        assert type(log_dict['cryptokey']) == str
+
+        # Ensure log type recorded
+        log_dict['logtype'] = LogType.QUOTE_SERVER.value
 
         return Logging.__log_transaction(log_dict)
 
@@ -99,8 +114,11 @@ class Logging():
         assert type(log_dict['transactionNum']) == int
         assert log_dict['transactionNum'] > 0
         assert type(log_dict['action']) == str
-        assert type('username') == str
-        assert type('funds') == float
+        assert type(log_dict['username']) == str
+        assert type(log_dict['funds']) == float
+
+        # Ensure log type recorded
+        log_dict['logtype'] = LogType.ACCOUNT_TRANSACTION.value
 
         return Logging.__log_transaction(log_dict)       
 
@@ -120,6 +138,9 @@ class Logging():
         assert log_dict['transactionNum'] > 0
         assert type(log_dict['command']) == CommandType
 
+        # Ensure log type recorded
+        log_dict['logtype'] = LogType.SYSTEM_EVENT.value
+
         return Logging.__log_transaction(log_dict)  
 
     @staticmethod
@@ -135,6 +156,9 @@ class Logging():
         assert type(log_dict['transactionNum']) == int
         assert log_dict['transactionNum'] > 0
         assert type(log_dict['command']) == CommandType
+
+        # Ensure log type recorded
+        log_dict['logtype'] = LogType.ERROR_EVENT.value
 
         return Logging.__log_transaction(log_dict) 
 
@@ -152,15 +176,23 @@ class Logging():
         assert log_dict['transactionNum'] > 0
         assert type(log_dict['command']) == CommandType
 
+        # Ensure log type recorded
+        log_dict['logtype'] = LogType.DEBUG_EVENT.value
+
         return Logging.__log_transaction(log_dict)
 
     @staticmethod
-    def convert_dicts_to_xml(log_dicts):
-        # TODO finish
-        assert type(log_dicts) == list
+    def convert_dicts_to_xml(logs):
+        assert type(logs) == list
 
-        root = ET.Element('log')
-        for log_entry in log_dicts:
-            print(log_entry)
+        # For each log entry, append the XML element with corresponding elements.
+        xml_root = ET.Element('log')
+        for log_entry in logs:
+            # Add xml tag with correct name
+            xml_log_element = ET.SubElement(xml_root, log_entry['logtype'])
 
-        return ET.tostring(root)
+            for log_field in list(log_entry.keys()):
+                if log_field == 'logtype': continue
+                ET.SubElement(xml_log_element, log_field).text = str(log_entry[log_field])
+
+        return ET.ElementTree(xml_root)

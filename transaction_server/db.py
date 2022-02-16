@@ -115,8 +115,8 @@ class DB():
         the earliest log.
         '''
         if not user_id:
-            return list(self.db.logs.find({}).sort({ 'timestamp': 1}))
-        return list(self.db.logs.find({'username': user_id}).sort({ 'timestamp': 1}))
+            return list(self.db.logs.find({}, {'_id': False}).sort('timestamp', 1))
+        return list(self.db.logs.find({'username': user_id}, {'_id': False}).sort('timestamp', 1))
 
     def add_pending_transaction(self, user_id, tx_type, stock_symbol, amount, unix_timestamp):
         '''

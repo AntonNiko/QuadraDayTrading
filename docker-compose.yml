@@ -5,6 +5,8 @@ services:
       - "8000:5000"
     links:
       - "database:db"
+    volumes:
+      - ./logs:/app/logs
   database:
     image: mongo:latest
 #    environment:
@@ -14,6 +16,3 @@ services:
       - 27017:27017
 #    volumes:
 #      - mongodb_data_container:/data/db
-
-#volumes:
-#  mongodb_data_container:
