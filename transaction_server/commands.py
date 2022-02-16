@@ -44,23 +44,22 @@ def add():
 
         matched_count, modified_count = db.add_money_to_account(user_id, amount)
 
+        # Log as AccountTransactionType with updated balance
+        Logging.log_account_transaction({
+            'timestamp': int(time.time() * 1000), # ms
+            'server': 'test',
+            'transactionNum': tx_num,
+            'action': 'add',
+            'username': user_id,
+            'funds': float(db.get_account(user_id)['balance'])
+        })
+
+        db.close_connection()
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
         return jsonify(response)
-
-    # Log as AccountTransactionType with updated balance
-    Logging.log_account_transaction({
-        'timestamp': int(time.time() * 1000), # ms
-        'server': 'test',
-        'transactionNum': tx_num,
-        'action': 'add',
-        'username': user_id,
-        'funds': float(db.get_account(user_id)['balance'])
-    })
     
-    db.close_connection()
-
     response['status'] = 'success'
     response['matched_count'] = matched_count
     response['modified_count'] = modified_count
@@ -173,9 +172,9 @@ def commit_buy():
 
     # Ensure latest buy command exists and is less than 60 seconds old.
     db = DB()
-    userid = args['userid']
+    user_id = args['userid']
 
-    pending_transaction = db.get_pending_transaction(userid, 'BUY')
+    pending_transaction = db.get_pending_transaction(user_id, 'BUY')
     if not pending_transaction:
         response['status'] = 'failure'
         response['message'] = 'No pending BUY transaction found.'
@@ -192,16 +191,26 @@ def commit_buy():
         return jsonify(response)
 
     # Delete pending transaction
-    deleted_count = db.delete_pending_transaction(userid, 'BUY')
+    deleted_count = db.delete_pending_transaction(user_id, 'BUY')
     assert deleted_count == 1
 
     # Reduce account balance by specified amount
-    matched_count, modified_count = db.remove_money_from_account(userid, amount)
+    matched_count, modified_count = db.remove_money_from_account(user_id, amount)
     assert matched_count == 1
     assert modified_count == 1
 
+    # Log as AccountTransactionType with updated balance
+    Logging.log_account_transaction({
+        'timestamp': int(time.time() * 1000), # ms
+        'server': 'test',
+        'transactionNum': tx_num,
+        'action': 'remove',
+        'username': user_id,
+        'funds': float(db.get_account(user_id)['balance'])
+    })
+
     # Increase account amount of stock owned
-    portfolio_matched_count, portfolio_modified_count = db.increase_stock_portfolio_amount(userid, stock_symbol, amount)
+    portfolio_matched_count, portfolio_modified_count = db.increase_stock_portfolio_amount(user_id, stock_symbol, amount)
     db.close_connection()
 
     response['status'] = 'success'
@@ -339,9 +348,9 @@ def commit_sell():
 
     # Ensure latest sell command exists and is less than 60 seconds old.
     db = DB()
-    userid = args['userid']
+    user_id = args['userid']
 
-    pending_transaction = db.get_pending_transaction(userid, 'SELL')
+    pending_transaction = db.get_pending_transaction(user_id, 'SELL')
     if not pending_transaction:
         response['status'] = 'failure'
         response['message'] = 'No pending SELL transaction found.'
@@ -358,17 +367,27 @@ def commit_sell():
         return jsonify(response)
 
     # Delete pending transaction
-    deleted_count = db.delete_pending_transaction(userid, 'SELL')
+    deleted_count = db.delete_pending_transaction(user_id, 'SELL')
     assert deleted_count == 1
 
     # Decrease account amount of stock owned
-    portfolio_matched_count, portfolio_modified_count = db.decrease_stock_portfolio_amount(userid, stock_symbol, amount)
+    portfolio_matched_count, portfolio_modified_count = db.decrease_stock_portfolio_amount(user_id, stock_symbol, amount)
     db.close_connection()
 
     # Increase account balance by specified amount
-    matched_count, modified_count = db.add_money_to_account(userid, amount)
+    matched_count, modified_count = db.add_money_to_account(user_id, amount)
     assert matched_count == 1
     assert modified_count == 1
+
+    # Log as AccountTransactionType with updated balance
+    Logging.log_account_transaction({
+        'timestamp': int(time.time() * 1000), # ms
+        'server': 'test',
+        'transactionNum': tx_num,
+        'action': 'add',
+        'username': user_id,
+        'funds': float(db.get_account(user_id)['balance'])
+    })
 
     response['status'] = 'success'
     response['message'] = 'Successfully commited SELL transaction for {} for amount {}'.format(stock_symbol, amount)
@@ -473,7 +492,7 @@ def dumplog():
     try:
         assert 'filename' in args, 'filename parameter not provided'
     except AssertionError as err:
-        response['stauts'] = 'failure'
+        response['status'] = 'failure'
         response['message'] = str(err)
         return jsonify(response)
 
