@@ -40,6 +40,7 @@ def add():
         The user's account is increased by the amount of money specified
     '''
     tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.ADD)
     response = {'status': None}
     args = dict(request.args)
 
@@ -84,6 +85,7 @@ def quote():
         The current price of the specified stock is displayed to the user
     '''
     tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.QUOTE)
     response = {'status': None}
     args = dict(request.args)
 
@@ -119,6 +121,7 @@ def buy():
         The user is asked to confirm or cancel the transaction
     '''
     tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.BUY)
     response = {'status': None}
     args = dict(request.args)
 
@@ -187,6 +190,7 @@ def commit_buy():
         (b) the user's account for the given stock is increased by the purchase amount
     '''
     tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.COMMIT_BUY)
     response = {'status': None}
     args = dict(request.args)
 
@@ -260,6 +264,7 @@ def cancel_buy():
         The last BUY command is canceled and any allocated system resources are reset and released.
     '''
     tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_BUY)
     response = {'status': None}
     args = dict(request.args)
 
@@ -315,6 +320,7 @@ def sell():
         The user is asked to confirm or cancel the given transaction
     '''
     tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.SELL)
     response = {'status': None}
     args = dict(request.args)
 
@@ -395,6 +401,7 @@ def commit_sell():
         (b) the user's cash account is increased by the sell amount
     '''
     tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.COMMIT_SELL)
     response = {'status': None}
     args = dict(request.args)
 
@@ -467,6 +474,7 @@ def cancel_sell():
         The last SELL command is canceled and any allocated system resources are reset and released.
     '''
     tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SELL)
     response = {'status': None}
     args = dict(request.args)
 
@@ -523,6 +531,7 @@ def set_buy_amount():
         (c) when the trigger point is reached the user's stock account is updated to reflect the BUY transaction.
     '''
     tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT)
     response = {'status': None}
     args = dict(request.args)
 
@@ -579,6 +588,7 @@ def cancel_set_buy():
         (b) the BUY_TRIGGER for the given user and stock is also canceled.
     '''
     tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY)
     response = {'status': None}
     args = dict(request.args)
 
@@ -637,6 +647,7 @@ def set_buy_trigger():
         The set of the user's buy triggers is updated to include the specified trigger
     '''
     tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER)
     response = {'status': None}
     args = dict(request.args)
 
@@ -709,6 +720,7 @@ def dumplog():
     Output is to specified filename appended with date and time it was created, to keep unique logs.
     '''
     tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.DUMPLOG)
     response = {'status': None}
     args = dict(request.args)
 
