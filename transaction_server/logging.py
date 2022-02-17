@@ -125,6 +125,7 @@ class Logging():
         assert type(log_params['transactionNum']) == int
         assert log_params['transactionNum'] > 0
         assert type(log_params['command']) == CommandType
+        log_params['command'] = log_params['command'].value
 
         return Logging.__log_transaction(LogType.SYSTEM_EVENT.value, log_params)  
 
@@ -137,6 +138,7 @@ class Logging():
         assert type(log_params['transactionNum']) == int
         assert log_params['transactionNum'] > 0
         assert type(log_params['command']) == CommandType
+        log_params['command'] = log_params['command'].value
 
         return Logging.__log_transaction(LogType.ERROR_EVENT.value, log_params) 
 
@@ -149,6 +151,7 @@ class Logging():
         assert type(log_params['transactionNum']) == int
         assert log_params['transactionNum'] > 0
         assert type(log_params['command']) == CommandType
+        log_params['command'] = log_params['command'].value
 
         return Logging.__log_transaction(LogType.DEBUG_EVENT.value, log_params)
 
