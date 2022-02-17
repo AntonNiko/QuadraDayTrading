@@ -159,23 +159,23 @@ def buy():
         return jsonify(response)
 
     # Get quote for stock and determine nearest whole number of shares that can be bought.
-    price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
-    shares_to_buy = amount//price
+    #price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
+    #shares_to_buy = amount//price
 
     # Add transaction as pending confirmation from user & delete any previous pending transactions
     if db.get_pending_transaction(userid, 'BUY'):
         db.delete_pending_transaction(userid, 'BUY')
-    db.add_pending_transaction(userid, 'BUY', stocksymbol, (shares_to_buy * price), time.time())
+    db.add_pending_transaction(userid, 'BUY', stocksymbol, amount, time.time()) # (shares_to_buy * price)
     db.close_connection()
 
     response['status'] = 'success'
     response['message'] = 'Successfully registered pending transaction. Confirm buy within 60 seconds.'
-    response['price'] = price
-    response['shares_to_buy'] = shares_to_buy
-    response['symbol'] = symbol
-    response['username'] = username
-    response['timestamp'] = timestamp
-    response['cryptokey'] = cryptokey
+    #response['price'] = price
+    #response['shares_to_buy'] = shares_to_buy
+    #response['symbol'] = symbol
+    #response['username'] = username
+    #response['timestamp'] = timestamp
+    #response['cryptokey'] = cryptokey
     return jsonify(response)
 
 @bp.route('/commit_buy', methods=['GET'])
@@ -361,12 +361,13 @@ def sell():
         return jsonify(response)
 
     # Get quote for stock and determine nearest whole number of shares that can be bought.
-    price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
-    total_share_value = amount * price
+    #price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
+    #total_share_value = amount * price
 
-    if amount > total_share_value:
+    if amount > user_stocks[stocksymbol]: # total_share_value
         response['status'] = 'failure'
-        response['message'] = 'Not enough stock owned at current price to sell. Current price: {}, Total share value: {}, Requested amount: {}'.formatt(price, total_share_value, amount)
+        #response['message'] = 'Not enough stock owned at current price to sell. Current price: {}, Total share value: {}, Requested amount: {}'.format(price, total_share_value, amount)
+        response['message'] = 'Not enough stock owned to sell'
 
         # Log as ErrorEventType
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message']) 
@@ -382,11 +383,11 @@ def sell():
 
     response['status'] = 'success'
     response['message'] = 'Successfully registered pending transaction. Confirm sell within 60 seconds.'
-    response['price'] = price
-    response['symbol'] = symbol
-    response['username'] = username
-    response['timestamp'] = timestamp
-    response['cryptokey'] = cryptokey
+    #response['price'] = price
+    #response['symbol'] = symbol
+    #response['username'] = username
+    #response['timestamp'] = timestamp
+    #response['cryptokey'] = cryptokey
     return jsonify(response)
 
 @bp.route('/commit_sell', methods=['GET'])
@@ -747,11 +748,21 @@ def dumplog():
     logs_xml = Logging.convert_dicts_to_xml(logs)
     logs_xml.write('logs/{}.xml'.format(filename), encoding='utf-8')
 
+    # Log as SystemEventType
+    Logging.log_system_event(transactionNum=tx_num, command=CommandType.DUMPLOG, filename=filename)
+
     response['status'] = 'success'
     response['message'] = 'Wrote logs to {}'.format(filename)
     return jsonify(response) 
 
 @bp.route('/display_summary', methods=['GET'])
 def display_summary():
-    # TODO for 1 user workload
+    '''
+	Provides a summary to the client of the given user's transaction history and the current status of their accounts as well as any set buy or sell triggers and their parameters
+
+    Pre-conditions:
+        none
+    Post-conditions: 
+	    A summary of the given user's transaction history and the current status of their accounts as well as any set buy or sell triggers and their parameters is displayed to the user. 
+    '''
     pass
