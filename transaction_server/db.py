@@ -118,7 +118,7 @@ class DB():
             return list(self.db.logs.find({}, {'_id': False}).sort('timestamp', 1))
         return list(self.db.logs.find({'username': user_id}, {'_id': False}).sort('timestamp', 1))
 
-    def add_pending_transaction(self, user_id, tx_type, stock_symbol, num_shares, share_price, unix_timestamp):
+    def add_pending_transaction(self, user_id, tx_type, stock_symbol, amount, unix_timestamp):
         '''
         Adds the provided transaction as a pending transaction the user
         needs to confirm.
@@ -126,11 +126,10 @@ class DB():
         assert type(user_id) == str
         assert tx_type in ['BUY', 'SELL']
         assert type(stock_symbol) == str
-        assert type(num_shares) == int
-        assert type(share_price) == float
+        assert type(amount) == float
         assert type(unix_timestamp) == float
         
-        document_to_insert = {'userid': user_id, 'tx_type': tx_type, 'stock_symbol': stock_symbol, 'num_shares': num_shares, 'share_price': share_price, 'timestamp': unix_timestamp}
+        document_to_insert = {'userid': user_id, 'tx_type': tx_type, 'stock_symbol': stock_symbol, 'amount': amount, 'timestamp': unix_timestamp}
         insert_one_result = self.db.pending_transactions.insert_one(document_to_insert)
         return insert_one_result.inserted_id
 

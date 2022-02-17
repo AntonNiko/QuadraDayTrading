@@ -28,13 +28,13 @@ class QuoteServerClient():
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((HOST, PORT))
-            s.sendall(str.encode('{} {}\n'.format(symbol, username)))
+            s.sendall(str.encode('{:3s} {}\n'.format(symbol, username)))
             data = s.recv(1024)
 
         data_str_trimmed = data.decode('utf-8')[:-1]
         price, symbol, username, timestamp, cryptokey = data_str_trimmed.split(',')
 
         # Log as QuoteServerType
-        Logging.log_quote_server_hit(transactionNum=tx_num, price=price, stockSymbol=symbol, username=username, quoteServerTime=timestamp, cryptokey=cryptokey)
+        Logging.log_quote_server_hit(transactionNum=tx_num, price=float(price), stockSymbol=symbol, username=username, quoteServerTime=int(timestamp), cryptokey=cryptokey)
 
         return float(price), symbol, username, int(timestamp), cryptokey

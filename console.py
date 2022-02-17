@@ -31,9 +31,6 @@ for line in lines:
         assert r.status_code == 200
 
     elif command == 'QUOTE':
-        # ignore for local testing
-        continue
-
         user_id = commands[1]
         stock_symbol = commands[2]
         r = requests.get('{}/commands/quote?userid={}&stocksymbol={}'.format(TX_SERVER_URL, user_id, stock_symbol))
@@ -71,6 +68,26 @@ for line in lines:
     elif command == 'CANCEL_SELL':
         user_id = commands[1]
         r = requests.get('{}/commands/cancel_sell?userid={}'.format(TX_SERVER_URL, user_id))
+        assert r.status_code == 200
+
+    elif command == 'SET_BUY_AMOUNT':
+        user_id = commands[1]
+        stock_symbol = commands[2]
+        amount = commands[3]
+        r = requests.get('{}/commands/set_buy_amount?userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, user_id, stock_symbol, amount))
+        assert r.status_code == 200
+
+    elif command == 'CANCEL_SET_BUY':
+        user_id = commands[1]
+        stock_symbol = commands[2]
+        r = requests.get('{}/commands/cancel_set_buy?userid={}&stocksymbol={}'.format(TX_SERVER_URL, user_id, stock_symbol))
+        assert r.status_code == 200
+
+    elif command == 'SET_BUY_TRIGGER':
+        user_id = commands[1]
+        stock_symbol = commands[2]
+        amount = commands[3]
+        r = requests.get('{}/commands/set_buy_trigger?userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, user_id, stock_symbol, amount))
         assert r.status_code == 200
 
     elif command == 'DUMPLOG':

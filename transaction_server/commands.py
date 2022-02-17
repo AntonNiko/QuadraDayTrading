@@ -162,7 +162,7 @@ def buy():
     # Add transaction as pending confirmation from user & delete any previous pending transactions
     if db.get_pending_transaction(userid, 'BUY'):
         db.delete_pending_transaction(userid, 'BUY')
-    db.add_pending_transaction(userid, 'BUY', stocksymbol, (shares_to_buy * price), price, time.time())
+    db.add_pending_transaction(userid, 'BUY', stocksymbol, (shares_to_buy * price), time.time())
     db.close_connection()
 
     response['status'] = 'success'
