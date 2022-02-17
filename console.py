@@ -75,12 +75,12 @@ for line in lines:
 
     elif command == 'DUMPLOG':
         if len(commands) == 2:
-            filename = commands[1]
+            filename = commands[1].lstrip('./')[:-1]
             r = requests.get('{}/commands/dumplog?filename={}'.format(TX_SERVER_URL, filename))
             assert r.status_code == 200
 
         elif len(commands) == 3:
             user_id = commands[1]
-            filename = commands[2]
+            filename = commands[2].lstrip('./')[:-1]
             r = requests.get('{}/commands/dumplog?userid={}&filename={}'.format(TX_SERVER_URL, user_id, filename))
             assert r.status_code == 200

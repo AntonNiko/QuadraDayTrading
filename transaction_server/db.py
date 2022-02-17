@@ -31,7 +31,7 @@ class DB():
         '''
         assert type(user_id) == str
 
-        insert_one_result = self.db.accounts.insert_one({'userid': user_id, 'balance': 0.0, 'stocks': {}})
+        insert_one_result = self.db.accounts.insert_one({'userid': user_id, 'balance': 0.0, 'stocks': {}, 'reserve_buy': {}, 'buy_triggers': {}, 'sell_triggers': {}})
         return insert_one_result.inserted_id
 
     def add_money_to_account(self, user_id, amount):
@@ -118,7 +118,7 @@ class DB():
             return list(self.db.logs.find({}, {'_id': False}).sort('timestamp', 1))
         return list(self.db.logs.find({'username': user_id}, {'_id': False}).sort('timestamp', 1))
 
-    def add_pending_transaction(self, user_id, tx_type, stock_symbol, amount, unix_timestamp):
+    def add_pending_transaction(self, user_id, tx_type, stock_symbol, num_shares, share_price, unix_timestamp):
         '''
         Adds the provided transaction as a pending transaction the user
         needs to confirm.
@@ -126,10 +126,11 @@ class DB():
         assert type(user_id) == str
         assert tx_type in ['BUY', 'SELL']
         assert type(stock_symbol) == str
-        assert type(amount) == float
+        assert type(num_shares) == int
+        assert type(share_price) == float
         assert type(unix_timestamp) == float
         
-        document_to_insert = {'userid': user_id, 'tx_type': tx_type, 'stock_symbol': stock_symbol, 'amount': amount, 'timestamp': unix_timestamp}
+        document_to_insert = {'userid': user_id, 'tx_type': tx_type, 'stock_symbol': stock_symbol, 'num_shares': num_shares, 'share_price': share_price, 'timestamp': unix_timestamp}
         insert_one_result = self.db.pending_transactions.insert_one(document_to_insert)
         return insert_one_result.inserted_id
 
@@ -145,13 +146,65 @@ class DB():
 
     def delete_pending_transaction(self, user_id, tx_type):
         '''
-        Deletes the pending transaction associated with the user ID, fi one 
+        Deletes the pending transaction associated with the user ID, if one 
         exists.
         '''
         assert type(user_id) == str
 
         delete_result = self.db.pending_transactions.delete_one({'userid': user_id, 'tx_type': tx_type})
         return delete_result.deleted_count
+
+    def add_buy_reserve_amount(self, user_id, stock_symbol, amount):
+        '''
+        Adds specified amount of money into user's reserve account for a triggered BUY.
+        '''
+        assert type(user_id) == str
+        assert type(stock_symbol) == str
+        assert type(amount) == float
+        assert amount > 0
+
+        update_result = self.db.accounts.update_one({'userid': user_id}, {'$inc': {'reserve_buy.{}'.format(stock_symbol): amount}})
+        return update_result.matched_count, update_result.modified_count
+
+    def unset_buy_reserve_amount(self, user_id, stock_symbol):
+        '''
+        Removes reserve amount from specified stock symbol for specified user.
+        '''
+        assert type(user_id) == str
+        assert type(stock_symbol) == str
+
+        update_result = self.db.accounts.update_one({'userid': user_id}, {'$unset': {'reserve_buy.{}'.format(stock_symbol): ''}})
+        return update_result.matched_count, update_result.modified_count
+
+    def set_trigger(self, trigger_type, user_id, stock_symbol, price):
+        '''
+        Adds trigger for user_id of a specific stock to be executed at specified price.
+        Trigger type is one of BUY or SELL.
+        '''
+        assert trigger_type in ['BUY', 'SELL']
+        assert type(user_id) == str
+        assert type(stock_symbol) == str
+        assert type(price) == float
+
+        if trigger_type == 'BUY':
+            update_result = self.db.accounts.update_one({'userid': user_id}, {'$set': {'buy_triggers.{}'.format(stock_symbol) : price}})
+        else:
+            update_result = self.db.accounts.update_one({'userid': user_id}, {'$set': {'sell_triggers.{}'.format(stock_symbol) : price}})
+        return update_result.matched_count, update_result.modified_count
+
+    def unset_trigger(self, trigger_type, user_id, stock_symbol):
+        '''
+        Unsets the trigger for user_id of a specific stock, if one matches.
+        '''
+        assert trigger_type in ['BUY', 'SELL']
+        assert type(user_id) == str
+        assert type(stock_symbol) == str
+
+        if trigger_type == 'BUY':
+            update_result = self.db.accounts.update_one({'userid': user_id}, {'$unset': {'buy_triggers.{}'.format(stock_symbol) : ''}})        
+        else:
+            update_result = self.db.accounts.update_one({'userid': user_id}, {'$unset': {'sell_triggers.{}'.format(stock_symbol) : ''}}) 
+        return update_result.matched_count, update_result.modified_count
 
     def close_connection(self):
         self.client.close()

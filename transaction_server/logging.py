@@ -59,7 +59,7 @@ class Logging():
         # Ensure log timestamp, server, and type recorded
         log_params['logtype'] = log_type
         log_params['server'] = SERVER_NAME
-        log_params['timestamp'] = LogType.USER_COMMAND.value
+        log_params['timestamp'] = int(time.time() * 1000) # ms
 
         db = DB()
         inserted_id = db.add_log(log_params)
@@ -75,6 +75,7 @@ class Logging():
         assert type(log_params['transactionNum']) == int
         assert log_params['transactionNum'] > 0
         assert type(log_params['command']) == CommandType
+        log_params['command'] = log_params['command'].value
 
         return Logging.__log_transaction(LogType.USER_COMMAND.value, log_params)
 
@@ -113,8 +114,6 @@ class Logging():
         assert type(log_params['funds']) == float
 
         return Logging.__log_transaction(LogType.ACCOUNT_TRANSACTION.value, log_params)       
-
-# TODO: All 3 calls below are the same, centralize logic.
 
     @staticmethod
     def log_system_event(**log_params):

@@ -11,7 +11,19 @@ from transaction_server.quoteserver_client import QuoteServerClient
 
 # Keep track of transactions for logging purposes.
 # TODO: Ensure it is thread-safe.
-current_tx_num = 1
+class TransactionNum:
+    def __init__(self):
+        self.current_tx_num = 1
+    
+    def get(self):
+        return self.current_tx_num
+
+    def get_and_increment(self):
+        tx_num = self.current_tx_num
+        self.current_tx_num+=1
+        return tx_num
+
+transaction_num = TransactionNum()
 
 bp = Blueprint('commands', __name__, url_prefix='/commands')
 
@@ -27,7 +39,7 @@ def add():
     Post-conditions:
         The user's account is increased by the amount of money specified
     '''
-    tx_num = current_tx_num
+    tx_num = transaction_num.get_and_increment()
     response = {'status': None}
     args = dict(request.args)
 
@@ -71,7 +83,7 @@ def quote():
     Post-conditions:
         The current price of the specified stock is displayed to the user
     '''
-    tx_num = current_tx_num
+    tx_num = transaction_num.get_and_increment()
     response = {'status': None}
     args = dict(request.args)
 
@@ -86,15 +98,14 @@ def quote():
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.QUOTE, errorMessage=str(err))
         return jsonify(response)
 
-    price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'])
-
-    # Log as QuoteServerType
-    Logging.log_quote_server_hit(transactionNum=tx_num, price=price, stockSymbol=symbol, username=username, quoteServerTime=timestamp, cryptokey=cryptokey)
+    price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
 
     response['status'] = 'success'
     response['price'] = price
     response['symbol'] = symbol
     response['username'] = username
+    response['timestamp'] = timestamp
+    response['cryptokey'] = cryptokey
     return jsonify(response)
 
 @bp.route('/buy', methods=['GET'])
@@ -107,7 +118,7 @@ def buy():
     Post-conditions:
         The user is asked to confirm or cancel the transaction
     '''
-    tx_num = current_tx_num
+    tx_num = transaction_num.get_and_increment()
     response = {'status': None}
     args = dict(request.args)
 
@@ -144,16 +155,24 @@ def buy():
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.BUY, errorMessage=response['message'])      
         return jsonify(response)
 
-    # Add transaction as pending confirmation from user.
-    # TODO: Replace with Redis?
-    # Delete any previous pending transactions
+    # Get quote for stock and determine nearest whole number of shares that can be bought.
+    price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
+    shares_to_buy = amount//price
+
+    # Add transaction as pending confirmation from user & delete any previous pending transactions
     if db.get_pending_transaction(userid, 'BUY'):
         db.delete_pending_transaction(userid, 'BUY')
-    db.add_pending_transaction(userid, 'BUY', stocksymbol, amount, time.time())
+    db.add_pending_transaction(userid, 'BUY', stocksymbol, (shares_to_buy * price), price, time.time())
     db.close_connection()
 
     response['status'] = 'success'
     response['message'] = 'Successfully registered pending transaction. Confirm buy within 60 seconds.'
+    response['price'] = price
+    response['shares_to_buy'] = shares_to_buy
+    response['symbol'] = symbol
+    response['username'] = username
+    response['timestamp'] = timestamp
+    response['cryptokey'] = cryptokey
     return jsonify(response)
 
 @bp.route('/commit_buy', methods=['GET'])
@@ -167,7 +186,7 @@ def commit_buy():
         (a) The user's cash account is decreased by the amount used to purchase the stock
         (b) the user's account for the given stock is increased by the purchase amount
     '''
-    tx_num = current_tx_num
+    tx_num = transaction_num.get_and_increment()
     response = {'status': None}
     args = dict(request.args)
 
@@ -196,7 +215,7 @@ def commit_buy():
 
     original_timestamp = pending_transaction['timestamp']
     stock_symbol = pending_transaction['stock_symbol']
-    amount = pending_transaction['amount']
+    amount = pending_transaction['amount'] # Total share value being bought.
 
     current_timestamp = time.time()
     if (current_timestamp - original_timestamp) > 60:
@@ -240,7 +259,7 @@ def cancel_buy():
     Post-conditions:
         The last BUY command is canceled and any allocated system resources are reset and released.
     '''
-    tx_num = current_tx_num
+    tx_num = transaction_num.get_and_increment()
     response = {'status': None}
     args = dict(request.args)
 
@@ -295,7 +314,7 @@ def sell():
     Post-conditions:
         The user is asked to confirm or cancel the given transaction
     '''
-    tx_num = current_tx_num
+    tx_num = transaction_num.get_and_increment()
     response = {'status': None}
     args = dict(request.args)
 
@@ -311,7 +330,7 @@ def sell():
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message'])    
         return jsonify(response)
 
-    # Ensure account exists and user owns enough stock to sell.
+    # Ensure account exists and user owns enough stock to sell at the price specified.
     db = DB()
     userid = args['userid']
     stocksymbol = args['stocksymbol']
@@ -325,7 +344,7 @@ def sell():
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message']) 
         return jsonify(response)
 
-    # Ensure user owns sufficient amount of stock
+    # Ensure user owns sufficient amount of stock at the current price.
     user_stocks = db.get_account(userid)['stocks']
     if stocksymbol not in user_stocks:
         response['status'] = 'failure'
@@ -335,13 +354,17 @@ def sell():
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message']) 
         return jsonify(response)
 
-    if amount > user_stocks[stocksymbol]:
+    # Get quote for stock and determine nearest whole number of shares that can be bought.
+    price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
+    total_share_value = amount * price
+
+    if amount > total_share_value:
         response['status'] = 'failure'
-        response['message'] = 'Not enough stock owned to sell.'
+        response['message'] = 'Not enough stock owned at current price to sell. Current price: {}, Total share value: {}, Requested amount: {}'.formatt(price, total_share_value, amount)
 
         # Log as ErrorEventType
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message']) 
-        return jsonify(response)
+        return jsonify(response)        
 
     # Add transaction as pending confirmation from user.
     # TODO: Replace with Redis?
@@ -353,6 +376,11 @@ def sell():
 
     response['status'] = 'success'
     response['message'] = 'Successfully registered pending transaction. Confirm sell within 60 seconds.'
+    response['price'] = price
+    response['symbol'] = symbol
+    response['username'] = username
+    response['timestamp'] = timestamp
+    response['cryptokey'] = cryptokey
     return jsonify(response)
 
 @bp.route('/commit_sell', methods=['GET'])
@@ -366,7 +394,7 @@ def commit_sell():
         (a) the user's account for the given stock is decremented by the sale amount
         (b) the user's cash account is increased by the sell amount
     '''
-    tx_num = current_tx_num
+    tx_num = transaction_num.get_and_increment()
     response = {'status': None}
     args = dict(request.args)
 
@@ -438,7 +466,7 @@ def cancel_sell():
     Post-conditions:
         The last SELL command is canceled and any allocated system resources are reset and released.
     '''
-    tx_num = current_tx_num
+    tx_num = transaction_num.get_and_increment()
     response = {'status': None}
     args = dict(request.args)
 
@@ -484,17 +512,167 @@ def cancel_sell():
 
 @bp.route('/set_buy_amount', methods=['GET'])
 def set_buy_amount():
-    # TODO for 1 user workload
-    pass
+    '''
+    Sets a defined amount of the given stock to buy when the current stock price is less than or equal to the BUY_TRIGGER
+
+    Pre-conditions:
+        The user's cash account must be greater than or equal to the BUY amount at the time the transaction occurs
+    Post-conditions:
+        (a) a reserve account is created for the BUY transaction to hold the specified amount in reserve for when the transaction is triggered 
+        (b) the user's cash account is decremented by the specified amount 
+        (c) when the trigger point is reached the user's stock account is updated to reflect the BUY transaction.
+    '''
+    tx_num = transaction_num.get_and_increment()
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+        assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
+        assert 'amount' in args, 'amount parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT, errorMessage=response['message']) 
+        return jsonify(response)
+
+    user_id = args['userid']
+    stock_symbol = args['stocksymbol']
+    amount = float(args['amount'])
+
+    # Ensure user has enough cash in their account.
+    db = DB()
+    balance = db.get_account(user_id)['balance']
+    if balance < amount:
+        response['status'] = 'failure'
+        response['message'] = 'Not enough money in account for set buy amount.'
+
+         # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT, errorMessage=response['message'])      
+        return jsonify(response)
+
+    # Remove money from account and set aside in reserve account.
+    matched_count, modified_count = db.remove_money_from_account(user_id, amount)
+    assert matched_count == 1
+    assert modified_count == 1
+
+    # TODO: Replace any other existing buy amounts or just increment?
+    reserve_matched_count, reserve_modified_count = db.add_buy_reserve_amount(user_id, stock_symbol, amount)
+    db.close_connection()
+
+    response['status'] = 'success'
+    response['matched_count'] = reserve_matched_count
+    response['modified_count'] = reserve_modified_count
+    return jsonify(response)
 
 @bp.route('/cancel_set_buy', methods=['GET'])
 def cancel_set_buy():
-    # TODO for 1 user workload
-    pass
+    '''
+    Cancels a SET_BUY command issued for the given stock
+
+    Pre-conditions:
+        The must have been a SET_BUY Command issued for the given stock by the user
+    Post-conditions:
+        (a) All accounts are reset to the values they would have had had the SET_BUY Command not been issued 
+        (b) the BUY_TRIGGER for the given user and stock is also canceled.
+    '''
+    tx_num = transaction_num.get_and_increment()
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+        assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY, errorMessage=response['message']) 
+        return jsonify(response)
+
+    user_id = args['userid']
+    stock_symbol = args['stocksymbol']
+
+    # Ensure account exists
+    db = DB()
+    if not db.does_account_exist(user_id):
+        response['status'] = 'failure'
+        response['message'] = 'Account does not exist.'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY, errorMessage=response['message'])
+        return jsonify(response)
+
+    # Cancel, or return that no reserve buys were found.
+    cancel_matched, cancel_modified = db.unset_buy_reserve_amount(user_id, stock_symbol)
+    if cancel_modified == 0:
+        response['status'] = 'failure'
+        response['message'] = 'No reserve accounts for stock {} and user {} found.'.format(stock_symbol, user_id)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY, errorMessage=response['message'])
+        return jsonify(response)
+
+    # Remove any buy triggers for that stock
+    db.unset_trigger('BUY', user_id, stock_symbol)
+    db.close_connection()
+
+    response['status'] = 'success'
+    response['matched_count'] = cancel_matched
+    response['modified_count'] = cancel_modified
+    return jsonify(response)
+
 
 @bp.route('/set_buy_trigger', methods=['GET'])
 def set_buy_trigger():
-    pass
+    '''
+    Sets the trigger point base on the current stock price when any SET_BUY will execute.
+
+    Pre-conditions:
+        The user must have specified a SET_BUY_AMOUNT prior to setting a SET_BUY_TRIGGER
+    Post-conditions:
+        The set of the user's buy triggers is updated to include the specified trigger
+    '''
+    tx_num = transaction_num.get_and_increment()
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+        assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
+        assert 'amount' in args, 'amount parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER, errorMessage=response['message']) 
+        return jsonify(response)
+
+    user_id = args['userid']
+    stock_symbol = args['stocksymbol']
+    amount = float(args['amount'])
+
+    # Ensure set buy amount exists for user's stock.
+    db = DB()
+    if stock_symbol not in db.get_account(user_id)['reserve_buy']:
+        response['status'] = 'failure'
+        response['message'] = 'No buy reserve exists for stock {} for user {}'.format(stock_symbol, user_id)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER, errorMessage=response['message']) 
+        return jsonify(response)
+
+    db.set_trigger('BUY', user_id, stock_symbol, amount)
+    db.close_connection()
+
+    response['status'] = 'success'
+    response['message'] = 'Successfully added trigger for user {} for stock {} at price {}'.format(user_id, stock_symbol, amount)
+    return jsonify(response)
+    
 
 @bp.route('/set_sell_amount', methods=['GET'])
 def set_sell_amount():
@@ -527,8 +705,10 @@ def dumplog():
             Can only be executed from the supervisor (root/administrator) account.
         Post-conditions:
             Places a complete log file of all transactions that have occurred in the system into the file specified by filename
+
+    Output is to specified filename appended with date and time it was created, to keep unique logs.
     '''
-    tx_num = current_tx_num
+    tx_num = transaction_num.get_and_increment()
     response = {'status': None}
     args = dict(request.args)
 
@@ -543,6 +723,7 @@ def dumplog():
         return jsonify(response)
 
     # Query logs
+    filename = '{}-{}'.format(args['filename'], time.strftime('%Y%m%d-%H%M%S'))
     db = DB()
     if 'userid' in args:
         logs = db.get_logs(args['userid'])
@@ -552,10 +733,10 @@ def dumplog():
 
     # Convert logs to XML (Assume logs have been validated when entered.)
     logs_xml = Logging.convert_dicts_to_xml(logs)
-    logs_xml.write('logs/{}'.format(args['filename']), encoding='utf-8')
+    logs_xml.write('logs/{}.xml'.format(filename), encoding='utf-8')
 
     response['status'] = 'success'
-    response['message'] = 'Wrote logs to {}'.format(args['filename'])
+    response['message'] = 'Wrote logs to {}'.format(filename)
     return jsonify(response) 
 
 @bp.route('/display_summary', methods=['GET'])
