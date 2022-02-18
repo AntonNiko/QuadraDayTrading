@@ -14,9 +14,6 @@ from transaction_server.quoteserver_client import QuoteServerClient
 class TransactionNum:
     def __init__(self):
         self.current_tx_num = 1
-    
-    def get(self):
-        return self.current_tx_num
 
     def get_and_increment(self):
         tx_num = self.current_tx_num
@@ -688,18 +685,177 @@ def set_buy_trigger():
 
 @bp.route('/set_sell_amount', methods=['GET'])
 def set_sell_amount():
-    # TODO for 1 user workload
-    pass
+    '''
+    Sets a defined amount of the specified stock to sell when the current stock price is equal or greater than the sell trigger point 
+
+    Pre-conditions:
+        The user must have the specified amount of stock in their account for that stock.
+    Post-conditions:
+        A trigger is initialized for this username/stock symbol combination, but is not complete until SET_SELL_TRIGGER is executed.
+    '''
+    tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT)
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+        assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
+        assert 'amount' in args, 'amount parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, errorMessage=response['message']) 
+        return jsonify(response)
+
+    user_id = args['userid']
+    stock_symbol = args['stocksymbol']
+    amount = float(args['amount'])
+
+    # Ensure user owns sufficient amount of stock at the current price.
+    db = DB()
+    user_stocks = db.get_account(user_id)['stocks']
+    if stock_symbol not in user_stocks:
+        response['status'] = 'failure'
+        response['message'] = 'User does not own any {} stock'.format(stock_symbol)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, errorMessage=response['message']) 
+        return jsonify(response)
+
+    if amount > user_stocks[stock_symbol]: # total_share_value
+        response['status'] = 'failure'
+        #response['message'] = 'Not enough stock owned at current price to sell. Current price: {}, Total share value: {}, Requested amount: {}'.format(price, total_share_value, amount)
+        response['message'] = 'Not enough stock owned to set aside'
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, errorMessage=response['message']) 
+        return jsonify(response)
+
+    # Set SELL trigger with no price specified (until SET_SELL_TRIGGER called)
+    trigger_matched_count, trigger_modified_count = db.set_trigger('SELL', user_id, stock_symbol, price=None)
+
+    # Add SELL reserve amount
+    reserve_matched_count, reserve_modified_count = db.add_sell_reserve_amount(user_id, stock_symbol, amount)
+
+    db.close_connection()
+
+    response['status'] = 'success'
+    response['message'] = 'Successfully added trigger for user {} for stock {}.'.format(user_id, stock_symbol)
+    response['matched_count'] = reserve_matched_count
+    response['modified_count'] = reserve_modified_count
+    return jsonify(response)
 
 @bp.route('/set_sell_trigger', methods=['GET'])
 def set_sell_trigger():
-    # TODO for 1 user workload
-    pass
+    '''
+    Sets the stock price trigger point for executing any SET_SELL triggers associated with the given stock and user
+
+    Pre-conditions:
+        The user must have specified a SET_SELL_AMOUNT prior to setting a SET_SELL_TRIGGER
+    Post-coniditons:
+        (a) a reserve account is created for the specified amount of the given stock 
+        (b) the user account for the given stock is reduced by the max number of stocks that could be purchased and 
+        (c) the set of the user's sell triggers is updated to include the specified trigger.
+    '''
+    tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER)
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+        assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
+        assert 'amount' in args, 'amount parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER, errorMessage=response['message']) 
+        return jsonify(response)
+
+    user_id = args['userid']
+    stock_symbol = args['stocksymbol']
+    amount = float(args['amount'])
+
+    # Ensure SELL trigger for that stock exists.
+    db = DB()
+    triggers = db.get_account(user_id)['sell_triggers']
+    if stock_symbol not in triggers:
+        response['status'] = 'failure'
+        response['message'] = 'No sell triggers for stock {}'.format(stock_symbol)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER, errorMessage=response['message']) 
+        return jsonify(response)        
+
+    # Remove stock amount from account
+    matched_count, modified_count = db.decrease_stock_portfolio_amount(user_id, stock_symbol, amount)
+    assert matched_count == 1
+    assert modified_count == 1
+
+    # Set SELL trigger for stock at that price
+    trigger_matched_count, trigger_modified_count = db.set_trigger('SELL', user_id, stock_symbol, amount)
+    db.close_connection()
+    
+    response['status'] = 'success'
+    response['matched_count'] = trigger_matched_count
+    response['modified_count'] = trigger_modified_count
+    return jsonify(response)
 
 @bp.route('/cancel_set_sell', methods=['GET'])
 def cancel_set_sell():
-    # TODO for 1 user workload
-    pass
+    '''
+	Cancels the SET_SELL associated with the given stock and user
+
+    Pre-conditions:
+        The user must have had a previously set SET_SELL for the given stock
+    Post-conditions:
+        (a) The set of the user's sell triggers is updated to remove the sell trigger associated with the specified stock 
+        (b) all user account information is reset to the values they would have been if the given SET_SELL command had not been issued
+    '''
+    tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SET_SELL)
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+        assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SET_SELL, errorMessage=response['message']) 
+        return jsonify(response)
+
+    user_id = args['userid']
+    stock_symbol = args['stocksymbol']
+
+    # Cancel, or return that no reserve sells were found.
+    db = DB()
+    cancel_matched, cancel_modified = db.unset_sell_reserve_amount(user_id, stock_symbol)
+    if cancel_modified == 0:
+        response['status'] = 'failure'
+        response['message'] = 'No sell reserve accounts for stock {} and user {} found.'.format(stock_symbol, user_id)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SET_SELL, errorMessage=response['message'])
+        return jsonify(response)
+
+    # Remove any sell triggers for that stock
+    db.unset_trigger('SELL', user_id, stock_symbol)
+    db.close_connection()
+
+    response['status'] = 'success'
+    response['matched_count'] = cancel_matched
+    response['modified_count'] = cancel_modified
+    return jsonify(response)
+
 
 @bp.route('/dumplog', methods=['GET'])
 def dumplog():

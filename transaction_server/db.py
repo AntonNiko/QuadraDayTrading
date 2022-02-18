@@ -31,7 +31,7 @@ class DB():
         '''
         assert type(user_id) == str
 
-        insert_one_result = self.db.accounts.insert_one({'userid': user_id, 'balance': 0.0, 'stocks': {}, 'reserve_buy': {}, 'buy_triggers': {}, 'sell_triggers': {}})
+        insert_one_result = self.db.accounts.insert_one({'userid': user_id, 'balance': 0.0, 'stocks': {}, 'reserve_buy': {}, 'reserve_sell': {}, 'buy_triggers': {}, 'sell_triggers': {}})
         return insert_one_result.inserted_id
 
     def add_money_to_account(self, user_id, amount):
@@ -175,6 +175,28 @@ class DB():
         update_result = self.db.accounts.update_one({'userid': user_id}, {'$unset': {'reserve_buy.{}'.format(stock_symbol): ''}})
         return update_result.matched_count, update_result.modified_count
 
+    def add_sell_reserve_amount(self, user_id, stock_symbol, amount):
+        '''
+        Adds specified amount of money into user's reserve account for a triggered SELL.
+        '''
+        assert type(user_id) == str
+        assert type(stock_symbol) == str
+        assert type(amount) == float
+        assert amount > 0
+
+        update_result = self.db.accounts.update_one({'userid': user_id}, {'$inc': {'reserve_sell.{}'.format(stock_symbol): amount}})
+        return update_result.matched_count, update_result.modified_count
+
+    def unset_sell_reserve_amount(self, user_id, stock_symbol):
+        '''
+        Removes reserve sell amount from specified stock symbol for specified user.
+        '''
+        assert type(user_id) == str
+        assert type(stock_symbol) == str
+
+        update_result = self.db.accounts.update_one({'userid': user_id}, {'$unset': {'reserve_sell.{}'.format(stock_symbol): ''}})
+        return update_result.matched_count, update_result.modified_count
+
     def set_trigger(self, trigger_type, user_id, stock_symbol, price):
         '''
         Adds trigger for user_id of a specific stock to be executed at specified price.
@@ -183,7 +205,7 @@ class DB():
         assert trigger_type in ['BUY', 'SELL']
         assert type(user_id) == str
         assert type(stock_symbol) == str
-        assert type(price) == float
+        # assert type(price) == float price can be None
 
         if trigger_type == 'BUY':
             update_result = self.db.accounts.update_one({'userid': user_id}, {'$set': {'buy_triggers.{}'.format(stock_symbol) : price}})
