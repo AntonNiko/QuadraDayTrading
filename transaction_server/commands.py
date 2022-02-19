@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 '''
 This blueprint provides an API to process all user commands specified in:
-https://www.ece.uvic.ca/~seng468/ProjectWebSite/Commands.html 
+https://www.ece.uvic.ca/~seng468/ProjectWebSite/Commands.html
 '''
 from flask import Blueprint, jsonify, request
 import time
@@ -65,7 +65,7 @@ def add():
         # Log as ErrorEventType
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.ADD, errorMessage=str(err))
         return jsonify(response)
-    
+
     response['status'] = 'success'
     response['matched_count'] = matched_count
     response['modified_count'] = modified_count
@@ -110,10 +110,10 @@ def quote():
 @bp.route('/buy', methods=['GET'])
 def buy():
     '''
-    Buy the dollar amount of the stock for the specified user at the current price. 
+    Buy the dollar amount of the stock for the specified user at the current price.
 
     Pre-conditions:
-        The user's account must be greater or equal to the amount of the purchase. 
+        The user's account must be greater or equal to the amount of the purchase.
     Post-conditions:
         The user is asked to confirm or cancel the transaction
     '''
@@ -152,12 +152,12 @@ def buy():
         response['message'] = 'Not enough money in account to buy.'
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.BUY, errorMessage=response['message'])      
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.BUY, errorMessage=response['message'])
         return jsonify(response)
 
     # Get quote for stock and determine nearest whole number of shares that can be bought.
-    #price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
-    #shares_to_buy = amount//price
+    price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
+    shares_to_buy = amount//price
 
     # Add transaction as pending confirmation from user & delete any previous pending transactions
     if db.get_pending_transaction(userid, 'BUY'):
@@ -167,12 +167,12 @@ def buy():
 
     response['status'] = 'success'
     response['message'] = 'Successfully registered pending transaction. Confirm buy within 60 seconds.'
-    #response['price'] = price
-    #response['shares_to_buy'] = shares_to_buy
-    #response['symbol'] = symbol
-    #response['username'] = username
-    #response['timestamp'] = timestamp
-    #response['cryptokey'] = cryptokey
+    response['price'] = price
+    response['shares_to_buy'] = shares_to_buy
+    response['symbol'] = symbol
+    response['username'] = username
+    response['timestamp'] = timestamp
+    response['cryptokey'] = cryptokey
     return jsonify(response)
 
 @bp.route('/commit_buy', methods=['GET'])
@@ -198,7 +198,7 @@ def commit_buy():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_BUY, errorMessage=response['message'])      
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_BUY, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure latest buy command exists and is less than 60 seconds old.
@@ -211,7 +211,7 @@ def commit_buy():
         response['message'] = 'No pending BUY transaction found.'
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_BUY, errorMessage=response['message'])      
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_BUY, errorMessage=response['message'])
         return jsonify(response)
 
     original_timestamp = pending_transaction['timestamp']
@@ -224,7 +224,7 @@ def commit_buy():
         response['message'] = 'Most recent BUY command is more than 60 seconds old.'
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_BUY, errorMessage=response['message'])      
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_BUY, errorMessage=response['message'])
         return jsonify(response)
 
     # Delete pending transaction
@@ -248,7 +248,7 @@ def commit_buy():
     response['matched_count'] = portfolio_matched_count
     response['modified_count'] = portfolio_modified_count
     return jsonify(response)
-    
+
 
 @bp.route('/cancel_buy', methods=['GET'])
 def cancel_buy():
@@ -272,7 +272,7 @@ def cancel_buy():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_BUY, errorMessage=response['message'])      
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_BUY, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure latest buy command exists and is less than 60 seconds old.
@@ -285,7 +285,7 @@ def cancel_buy():
         response['message'] = 'No pending BUY transaction found.'
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_BUY, errorMessage=response['message'])    
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_BUY, errorMessage=response['message'])
         return jsonify(response)
 
     original_timestamp = pending_transaction['timestamp']
@@ -296,7 +296,7 @@ def cancel_buy():
         response['message'] = 'Most recent BUY command is more than 60 seconds old.'
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_BUY, errorMessage=response['message'])    
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_BUY, errorMessage=response['message'])
         return jsonify(response)
 
     # Delete pending BUY transaction such that COMMIT_BUY will not find any pending transactions.
@@ -330,7 +330,7 @@ def sell():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message'])    
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure account exists and user owns enough stock to sell at the price specified.
@@ -344,7 +344,7 @@ def sell():
         response['message'] = 'Account does not exist.'
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure user owns sufficient amount of stock at the current price.
@@ -354,12 +354,12 @@ def sell():
         response['message'] = 'User does not own any {} stock'.format(stocksymbol)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message'])
         return jsonify(response)
 
     # Get quote for stock and determine nearest whole number of shares that can be bought.
-    #price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
-    #total_share_value = amount * price
+    price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
+    total_share_value = amount * price
 
     if amount > user_stocks[stocksymbol]: # total_share_value
         response['status'] = 'failure'
@@ -367,8 +367,8 @@ def sell():
         response['message'] = 'Not enough stock owned to sell'
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message']) 
-        return jsonify(response)        
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message'])
+        return jsonify(response)
 
     # Add transaction as pending confirmation from user.
     # TODO: Replace with Redis?
@@ -380,11 +380,11 @@ def sell():
 
     response['status'] = 'success'
     response['message'] = 'Successfully registered pending transaction. Confirm sell within 60 seconds.'
-    #response['price'] = price
-    #response['symbol'] = symbol
-    #response['username'] = username
-    #response['timestamp'] = timestamp
-    #response['cryptokey'] = cryptokey
+    response['price'] = price
+    response['symbol'] = symbol
+    response['username'] = username
+    response['timestamp'] = timestamp
+    response['cryptokey'] = cryptokey
     return jsonify(response)
 
 @bp.route('/commit_sell', methods=['GET'])
@@ -410,7 +410,7 @@ def commit_sell():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_SELL, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_SELL, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure latest sell command exists and is less than 60 seconds old.
@@ -423,7 +423,7 @@ def commit_sell():
         response['message'] = 'No pending SELL transaction found.'
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_SELL, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_SELL, errorMessage=response['message'])
         return jsonify(response)
 
     original_timestamp = pending_transaction['timestamp']
@@ -436,7 +436,7 @@ def commit_sell():
         response['message'] = 'Most recent SELL command is more than 60 seconds old.'
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_SELL, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_SELL, errorMessage=response['message'])
         return jsonify(response)
 
     # Delete pending transaction
@@ -483,7 +483,7 @@ def cancel_sell():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SELL, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SELL, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure latest sell command exists and is less than 60 seconds old.
@@ -496,7 +496,7 @@ def cancel_sell():
         response['message'] = 'No pending SELL transaction found.'
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SELL, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SELL, errorMessage=response['message'])
         return jsonify(response)
 
     original_timestamp = pending_transaction['timestamp']
@@ -507,7 +507,7 @@ def cancel_sell():
         response['message'] = 'Most recent SELL command is more than 60 seconds old.'
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SELL, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SELL, errorMessage=response['message'])
         return jsonify(response)
 
     # Delete pending SELL transaction such that COMMIT_SELL will not find any pending transactions.
@@ -524,8 +524,8 @@ def set_buy_amount():
     Pre-conditions:
         The user's cash account must be greater than or equal to the BUY amount at the time the transaction occurs
     Post-conditions:
-        (a) a reserve account is created for the BUY transaction to hold the specified amount in reserve for when the transaction is triggered 
-        (b) the user's cash account is decremented by the specified amount 
+        (a) a reserve account is created for the BUY transaction to hold the specified amount in reserve for when the transaction is triggered
+        (b) the user's cash account is decremented by the specified amount
         (c) when the trigger point is reached the user's stock account is updated to reflect the BUY transaction.
     '''
     tx_num = transaction_num.get_and_increment()
@@ -542,7 +542,7 @@ def set_buy_amount():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT, errorMessage=response['message'])
         return jsonify(response)
 
     user_id = args['userid']
@@ -557,7 +557,7 @@ def set_buy_amount():
         response['message'] = 'Not enough money in account for set buy amount.'
 
          # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT, errorMessage=response['message'])      
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT, errorMessage=response['message'])
         return jsonify(response)
 
     # Remove money from account and set aside in reserve account.
@@ -582,7 +582,7 @@ def cancel_set_buy():
     Pre-conditions:
         The must have been a SET_BUY Command issued for the given stock by the user
     Post-conditions:
-        (a) All accounts are reset to the values they would have had had the SET_BUY Command not been issued 
+        (a) All accounts are reset to the values they would have had had the SET_BUY Command not been issued
         (b) the BUY_TRIGGER for the given user and stock is also canceled.
     '''
     tx_num = transaction_num.get_and_increment()
@@ -598,7 +598,7 @@ def cancel_set_buy():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY, errorMessage=response['message'])
         return jsonify(response)
 
     user_id = args['userid']
@@ -658,7 +658,7 @@ def set_buy_trigger():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER, errorMessage=response['message'])
         return jsonify(response)
 
     user_id = args['userid']
@@ -672,7 +672,7 @@ def set_buy_trigger():
         response['message'] = 'No buy reserve exists for stock {} for user {}'.format(stock_symbol, user_id)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER, errorMessage=response['message'])
         return jsonify(response)
 
     db.set_trigger('BUY', user_id, stock_symbol, amount)
@@ -681,12 +681,12 @@ def set_buy_trigger():
     response['status'] = 'success'
     response['message'] = 'Successfully added trigger for user {} for stock {} at price {}'.format(user_id, stock_symbol, amount)
     return jsonify(response)
-    
+
 
 @bp.route('/set_sell_amount', methods=['GET'])
 def set_sell_amount():
     '''
-    Sets a defined amount of the specified stock to sell when the current stock price is equal or greater than the sell trigger point 
+    Sets a defined amount of the specified stock to sell when the current stock price is equal or greater than the sell trigger point
 
     Pre-conditions:
         The user must have the specified amount of stock in their account for that stock.
@@ -707,7 +707,7 @@ def set_sell_amount():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, errorMessage=response['message'])
         return jsonify(response)
 
     user_id = args['userid']
@@ -722,7 +722,7 @@ def set_sell_amount():
         response['message'] = 'User does not own any {} stock'.format(stock_symbol)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, errorMessage=response['message'])
         return jsonify(response)
 
     if amount > user_stocks[stock_symbol]: # total_share_value
@@ -731,7 +731,7 @@ def set_sell_amount():
         response['message'] = 'Not enough stock owned to set aside'
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, errorMessage=response['message'])
         return jsonify(response)
 
     # Set SELL trigger with no price specified (until SET_SELL_TRIGGER called)
@@ -756,8 +756,8 @@ def set_sell_trigger():
     Pre-conditions:
         The user must have specified a SET_SELL_AMOUNT prior to setting a SET_SELL_TRIGGER
     Post-coniditons:
-        (a) a reserve account is created for the specified amount of the given stock 
-        (b) the user account for the given stock is reduced by the max number of stocks that could be purchased and 
+        (a) a reserve account is created for the specified amount of the given stock
+        (b) the user account for the given stock is reduced by the max number of stocks that could be purchased and
         (c) the set of the user's sell triggers is updated to include the specified trigger.
     '''
     tx_num = transaction_num.get_and_increment()
@@ -774,7 +774,7 @@ def set_sell_trigger():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER, errorMessage=response['message'])
         return jsonify(response)
 
     user_id = args['userid']
@@ -789,8 +789,8 @@ def set_sell_trigger():
         response['message'] = 'No sell triggers for stock {}'.format(stock_symbol)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER, errorMessage=response['message']) 
-        return jsonify(response)        
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER, errorMessage=response['message'])
+        return jsonify(response)
 
     # Remove stock amount from account
     matched_count, modified_count = db.decrease_stock_portfolio_amount(user_id, stock_symbol, amount)
@@ -800,7 +800,7 @@ def set_sell_trigger():
     # Set SELL trigger for stock at that price
     trigger_matched_count, trigger_modified_count = db.set_trigger('SELL', user_id, stock_symbol, amount)
     db.close_connection()
-    
+
     response['status'] = 'success'
     response['matched_count'] = trigger_matched_count
     response['modified_count'] = trigger_modified_count
@@ -814,7 +814,7 @@ def cancel_set_sell():
     Pre-conditions:
         The user must have had a previously set SET_SELL for the given stock
     Post-conditions:
-        (a) The set of the user's sell triggers is updated to remove the sell trigger associated with the specified stock 
+        (a) The set of the user's sell triggers is updated to remove the sell trigger associated with the specified stock
         (b) all user account information is reset to the values they would have been if the given SET_SELL command had not been issued
     '''
     tx_num = transaction_num.get_and_increment()
@@ -830,7 +830,7 @@ def cancel_set_sell():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SET_SELL, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SET_SELL, errorMessage=response['message'])
         return jsonify(response)
 
     user_id = args['userid']
@@ -862,12 +862,12 @@ def dumplog():
     '''
     2 possible parameter combinations:
 
-    1) (userid, filename): Print out the history of the users transactions to the user specified file 
+    1) (userid, filename): Print out the history of the users transactions to the user specified file
         Pre-conditions:
             none
         Post-conditions:
             The history of the user's transaction are written to the specified file.
-                
+
     2) (filename): Print out to the specified file the complete set of transactions that have occurred in the system.
         Pre-conditions:
             Can only be executed from the supervisor (root/administrator) account.
@@ -888,7 +888,7 @@ def dumplog():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.DUMPLOG, errorMessage=response['message']) 
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.DUMPLOG, errorMessage=response['message'])
         return jsonify(response)
 
     # Query logs
@@ -909,7 +909,7 @@ def dumplog():
 
     response['status'] = 'success'
     response['message'] = 'Wrote logs to {}'.format(filename)
-    return jsonify(response) 
+    return jsonify(response)
 
 @bp.route('/display_summary', methods=['GET'])
 def display_summary():
@@ -918,7 +918,7 @@ def display_summary():
 
     Pre-conditions:
         none
-    Post-conditions: 
-	    A summary of the given user's transaction history and the current status of their accounts as well as any set buy or sell triggers and their parameters is displayed to the user. 
+    Post-conditions:
+	    A summary of the given user's transaction history and the current status of their accounts as well as any set buy or sell triggers and their parameters is displayed to the user.
     '''
     pass
