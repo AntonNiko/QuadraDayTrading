@@ -11,7 +11,7 @@ SERVER_NAME = socket.gethostname()
 
 # Logging functionality for transaction server. Validation is performed
 # according to the following:
-# https://www.ece.uvic.ca/~seng468/ProjectWebSite/logfile_xsd.html 
+# https://www.ece.uvic.ca/~seng468/ProjectWebSite/logfile_xsd.html
 
 
 class LogType(Enum):
@@ -34,7 +34,7 @@ class CommandType(Enum):
     SET_BUY_AMOUNT = 'SET_BUY_AMOUNT'
     CANCEL_SET_BUY = 'CANCEL_SET_BUY'
     SET_BUY_TRIGGER = 'SET_BUY_TRIGGER'
-    SET_SELL_AMOUNT = 'SET_SELL_TRIGGER'
+    SET_SELL_AMOUNT = 'SET_SELL_AMOUNT'
     SET_SELL_TRIGGER = 'SET_SELL_TRIGGER'
     CANCEL_SET_SELL = 'CANCEL_SET_SELL'
     DUMPLOG = 'DUMPLOG'
@@ -50,7 +50,7 @@ def is_stock_symbol(symbol):
 
 class Logging():
     '''
-    Every log has a timestamp and server name that this 
+    Every log has a timestamp and server name that this
     class fetches every time.
     '''
 
@@ -64,7 +64,7 @@ class Logging():
         db = DB()
         inserted_id = db.add_log(log_params)
         db.close_connection()
-        return inserted_id     
+        return inserted_id
 
     @staticmethod
     def log_user_command(**log_params):
@@ -113,39 +113,39 @@ class Logging():
         assert type(log_params['username']) == str
         assert type(log_params['funds']) == float
 
-        return Logging.__log_transaction(LogType.ACCOUNT_TRANSACTION.value, log_params)       
+        return Logging.__log_transaction(LogType.ACCOUNT_TRANSACTION.value, log_params)
 
     @staticmethod
     def log_system_event(**log_params):
         # Validate format is correct, then record to database.
-        assert 'transactionNum' in log_params       
-        assert 'command' in log_params 
+        assert 'transactionNum' in log_params
+        assert 'command' in log_params
 
         assert type(log_params['transactionNum']) == int
         assert log_params['transactionNum'] > 0
         assert type(log_params['command']) == CommandType
         log_params['command'] = log_params['command'].value
 
-        return Logging.__log_transaction(LogType.SYSTEM_EVENT.value, log_params)  
+        return Logging.__log_transaction(LogType.SYSTEM_EVENT.value, log_params)
 
     @staticmethod
     def log_error_event(**log_params):
         # Validate format is correct, then record to database.
-        assert 'transactionNum' in log_params       
-        assert 'command' in log_params 
+        assert 'transactionNum' in log_params
+        assert 'command' in log_params
 
         assert type(log_params['transactionNum']) == int
         assert log_params['transactionNum'] > 0
         assert type(log_params['command']) == CommandType
         log_params['command'] = log_params['command'].value
 
-        return Logging.__log_transaction(LogType.ERROR_EVENT.value, log_params) 
+        return Logging.__log_transaction(LogType.ERROR_EVENT.value, log_params)
 
     @staticmethod
     def log_debug(**log_params):
         # Validate format is correct, then record to database.
-        assert 'transactionNum' in log_params       
-        assert 'command' in log_params 
+        assert 'transactionNum' in log_params
+        assert 'command' in log_params
 
         assert type(log_params['transactionNum']) == int
         assert log_params['transactionNum'] > 0
