@@ -921,4 +921,20 @@ def display_summary():
     Post-conditions:
 	    A summary of the given user's transaction history and the current status of their accounts as well as any set buy or sell triggers and their parameters is displayed to the user.
     '''
-    pass
+    tx_num = transaction_num.get_and_increment()
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.DISPLAY_SUMMARY)
+    response = {'status': None}
+    args = dict(request.args)
+
+    try:
+        assert 'userid' in args, 'userid parameter not provided'
+    except AssertionError as err:
+        response['status'] = 'failure'
+        response['message'] = str(err)
+
+        # Log as ErrorEventType
+        Logging.log_error_event(transactionNum=tx_num, command=CommandType.DISPLAY_SUMMARY, errorMessage=response['message'])
+        return jsonify(response)
+
+    response['status'] = 'success'
+    return jsonify(response)

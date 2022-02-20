@@ -22,7 +22,7 @@ for line in lines:
     # Parse command and parameters from each line.
     commands_str = line.split(' ')[1]
     commands = commands_str.split(',')
-    
+
     command = commands[0]
     if command == 'ADD':
         user_id = commands[1]
@@ -63,6 +63,13 @@ for line in lines:
     elif command == 'COMMIT_SELL':
         user_id = commands[1]
         r = requests.get('{}/commands/commit_sell?userid={}'.format(TX_SERVER_URL, user_id))
+        assert r.status_code == 200
+
+    elif command == 'DISPLAY_SUMMARY':
+        user_id = commands[1]
+        print(user_id)
+        r = requests.get('{}/commands/display_summary?userid={}'.format(TX_SERVER_URL, user_id))
+        print(r)
         assert r.status_code == 200
 
     elif command == 'CANCEL_SELL':
