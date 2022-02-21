@@ -26,7 +26,7 @@ class DB():
     def create_account(self, user_id):
         '''
         Create an account with specified user_id. If account already exsits, raise
-        exception. If successful, newly created account has balance 0, and no stocks held. 
+        exception. If successful, newly created account has balance 0, and no stocks held.
         Returns inserted object ID
         '''
         assert type(user_id) == str
@@ -52,7 +52,7 @@ class DB():
         assert type(user_id) == str
         assert type(amount) == float
         assert amount >= 0
-        
+
         update_result = self.db.accounts.update_one({'userid': user_id}, {'$inc': {'balance': -amount}})
         return update_result.matched_count, update_result.modified_count
 
@@ -81,11 +81,11 @@ class DB():
         assert amount >= 0
 
         update_result = self.db.accounts.update_one({'userid': user_id}, {'$inc': {'stocks.{}'.format(stock_symbol): -amount}})
-        
+
         # If remaining balance 0, unset field.
         if self.db.accounts.find_one({'userid': user_id})['stocks'][stock_symbol] == 0:
             self.db.accounts.update_one({'userid': user_id}, {'$unset': {'stocks.{}'.format(stock_symbol): ''}})
-        
+
         return update_result.matched_count, update_result.modified_count
 
     def get_account(self, user_id):
@@ -100,7 +100,7 @@ class DB():
 
     def add_log(self, log):
         '''
-        Appends transaction log to the logs collection. This method does not 
+        Appends transaction log to the logs collection. This method does not
         validate the log format past it being a dictionary.
         '''
         assert type(log) == dict
@@ -111,7 +111,7 @@ class DB():
     def get_logs(self, user_id=None):
         '''
         Returns the application's logs. If user_id is specified, returns the logs for
-        that user id. Logs are returned in chronologically sorted order, starting from 
+        that user id. Logs are returned in chronologically sorted order, starting from
         the earliest log.
         '''
         if not user_id:
@@ -128,7 +128,7 @@ class DB():
         assert type(stock_symbol) == str
         assert type(amount) == float
         assert type(unix_timestamp) == float
-        
+
         document_to_insert = {'userid': user_id, 'tx_type': tx_type, 'stock_symbol': stock_symbol, 'amount': amount, 'timestamp': unix_timestamp}
         insert_one_result = self.db.pending_transactions.insert_one(document_to_insert)
         return insert_one_result.inserted_id
@@ -145,7 +145,7 @@ class DB():
 
     def delete_pending_transaction(self, user_id, tx_type):
         '''
-        Deletes the pending transaction associated with the user ID, if one 
+        Deletes the pending transaction associated with the user ID, if one
         exists.
         '''
         assert type(user_id) == str
@@ -222,10 +222,32 @@ class DB():
         assert type(stock_symbol) == str
 
         if trigger_type == 'BUY':
-            update_result = self.db.accounts.update_one({'userid': user_id}, {'$unset': {'buy_triggers.{}'.format(stock_symbol) : ''}})        
+            update_result = self.db.accounts.update_one({'userid': user_id}, {'$unset': {'buy_triggers.{}'.format(stock_symbol) : ''}})
         else:
-            update_result = self.db.accounts.update_one({'userid': user_id}, {'$unset': {'sell_triggers.{}'.format(stock_symbol) : ''}}) 
+            update_result = self.db.accounts.update_one({'userid': user_id}, {'$unset': {'sell_triggers.{}'.format(stock_symbol) : ''}})
         return update_result.matched_count, update_result.modified_count
+
+    def log_transaction(self, user_id, tx_type, stock_symbol, amount, unix_timestamp):
+        '''
+        gets transaction log
+        '''
+        assert type(user_id) == str
+        assert tx_type in ['BUY', 'SELL']
+        assert type(stock_symbol) == str
+        assert type(amount) == float
+        assert type(unix_timestamp) == float
+
+        document_to_insert = {'userid': user_id, 'tx_type': tx_type, 'stock_symbol': stock_symbol, 'amount': amount, 'timestamp': unix_timestamp}
+        insert_one_result = self.db.transactions.insert_one(document_to_insert)
+        return insert_one_result.inserted_id
+
+    def get_user_transactions(self, user_id):
+        '''
+        Gets transaction from specified user id
+        '''
+        assert type(user_id) == str
+
+        return list(self.db.transactions.find({'userid': user_id}))
 
     def close_connection(self):
         self.client.close()

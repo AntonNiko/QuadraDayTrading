@@ -67,9 +67,8 @@ for line in lines:
 
     elif command == 'DISPLAY_SUMMARY':
         user_id = commands[1]
-        print(user_id)
         r = requests.get('{}/commands/display_summary?userid={}'.format(TX_SERVER_URL, user_id))
-        print(r)
+        print(r.content)
         assert r.status_code == 200
 
     elif command == 'CANCEL_SELL':
@@ -96,7 +95,7 @@ for line in lines:
         amount = commands[3]
         r = requests.get('{}/commands/set_buy_trigger?userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, user_id, stock_symbol, amount))
         assert r.status_code == 200
-    
+
     elif command == 'SET_SELL_AMOUNT':
         user_id = commands[1]
         stock_symbol = commands[2]

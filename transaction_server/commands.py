@@ -5,6 +5,8 @@ https://www.ece.uvic.ca/~seng468/ProjectWebSite/Commands.html
 '''
 from flask import Blueprint, jsonify, request
 import time
+from bson import json_util
+import json
 from transaction_server.db import DB
 from transaction_server.logging import Logging, CommandType
 from transaction_server.quoteserver_client import QuoteServerClient
@@ -217,6 +219,8 @@ def commit_buy():
     original_timestamp = pending_transaction['timestamp']
     stock_symbol = pending_transaction['stock_symbol']
     amount = pending_transaction['amount'] # Total share value being bought.
+    tx_type = pending_transaction['tx_type']
+    db.log_transaction(user_id, tx_type, stock_symbol, amount, original_timestamp)
 
     current_timestamp = time.time()
     if (current_timestamp - original_timestamp) > 60:
@@ -429,6 +433,8 @@ def commit_sell():
     original_timestamp = pending_transaction['timestamp']
     stock_symbol = pending_transaction['stock_symbol']
     amount = pending_transaction['amount']
+    tx_type = pending_transaction['tx_type']
+    db.log_transaction(user_id, tx_type, stock_symbol, amount, original_timestamp)
 
     current_timestamp = time.time()
     if (current_timestamp - original_timestamp) > 60:
@@ -936,5 +942,12 @@ def display_summary():
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.DISPLAY_SUMMARY, errorMessage=response['message'])
         return jsonify(response)
 
+    db = DB()
+    account = json.loads(json_util.dumps(db.get_account(args['userid'])))
+    transactions = json.loads(json_util.dumps(db.get_user_transactions(args['userid'])))
+    db.close_connection()
+
+    response['transactions'] = transactions
+    response['account'] = account
     response['status'] = 'success'
     return jsonify(response)
