@@ -68,6 +68,7 @@ def add():
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.ADD, errorMessage=str(err))
         return jsonify(response)
 
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.ADD, username=user_id)
     response['status'] = 'success'
     response['matched_count'] = matched_count
     response['modified_count'] = modified_count
@@ -100,7 +101,7 @@ def quote():
         return jsonify(response)
 
     price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
-
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.QUOTE, username=args['userid'])
     response['status'] = 'success'
     response['price'] = price
     response['symbol'] = symbol
@@ -166,6 +167,8 @@ def buy():
         db.delete_pending_transaction(userid, 'BUY')
     db.add_pending_transaction(userid, 'BUY', stocksymbol, amount, time.time()) # (shares_to_buy * price)
     db.close_connection()
+
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.BUY, username=args['userid'])
 
     response['status'] = 'success'
     response['message'] = 'Successfully registered pending transaction. Confirm buy within 60 seconds.'
@@ -247,6 +250,8 @@ def commit_buy():
     portfolio_matched_count, portfolio_modified_count = db.increase_stock_portfolio_amount(user_id, stock_symbol, amount)
     db.close_connection()
 
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.COMMIT_BUY, username=user_id)
+
     response['status'] = 'success'
     response['message'] = 'Successfully commited BUY transaction for {} for amount {}'.format(stock_symbol, amount)
     response['matched_count'] = portfolio_matched_count
@@ -302,6 +307,8 @@ def cancel_buy():
         # Log as ErrorEventType
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_BUY, errorMessage=response['message'])
         return jsonify(response)
+
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.CANCEL_BUY, username=args['userid'])
 
     # Delete pending BUY transaction such that COMMIT_BUY will not find any pending transactions.
     deleted_count = db.delete_pending_transaction(userid, 'BUY')
@@ -382,6 +389,7 @@ def sell():
     db.add_pending_transaction(userid, 'SELL', stocksymbol, amount, time.time())
     db.close_connection()
 
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.SELL, username=args['userid'])
     response['status'] = 'success'
     response['message'] = 'Successfully registered pending transaction. Confirm sell within 60 seconds.'
     response['price'] = price
@@ -461,6 +469,7 @@ def commit_sell():
     # Log as AccountTransactionType with updated balance
     Logging.log_account_transaction(transactionNum=tx_num, action='add', username=user_id, funds=float(db.get_account(user_id)['balance']))
 
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.COMMIT_SELL, username=user_id)
     response['status'] = 'success'
     response['message'] = 'Successfully commited SELL transaction for {} for amount {}'.format(stock_symbol, amount)
     response['matched_count'] = portfolio_matched_count
@@ -515,6 +524,8 @@ def cancel_sell():
         # Log as ErrorEventType
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SELL, errorMessage=response['message'])
         return jsonify(response)
+
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.CANCEL_SELL, username=userid)
 
     # Delete pending SELL transaction such that COMMIT_SELL will not find any pending transactions.
     deleted_count = db.delete_pending_transaction(userid, 'SELL')
@@ -575,6 +586,7 @@ def set_buy_amount():
     reserve_matched_count, reserve_modified_count = db.add_buy_reserve_amount(user_id, stock_symbol, amount)
     db.close_connection()
 
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT, username=user_id)
     response['status'] = 'success'
     response['matched_count'] = reserve_matched_count
     response['modified_count'] = reserve_modified_count
@@ -634,6 +646,7 @@ def cancel_set_buy():
     db.unset_trigger('BUY', user_id, stock_symbol)
     db.close_connection()
 
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY, username=user_id)
     response['status'] = 'success'
     response['matched_count'] = cancel_matched
     response['modified_count'] = cancel_modified
@@ -684,6 +697,7 @@ def set_buy_trigger():
     db.set_trigger('BUY', user_id, stock_symbol, amount)
     db.close_connection()
 
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER, username=user_id)
     response['status'] = 'success'
     response['message'] = 'Successfully added trigger for user {} for stock {} at price {}'.format(user_id, stock_symbol, amount)
     return jsonify(response)
@@ -748,6 +762,7 @@ def set_sell_amount():
 
     db.close_connection()
 
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, username=user_id)
     response['status'] = 'success'
     response['message'] = 'Successfully added trigger for user {} for stock {}.'.format(user_id, stock_symbol)
     response['matched_count'] = reserve_matched_count
@@ -807,6 +822,7 @@ def set_sell_trigger():
     trigger_matched_count, trigger_modified_count = db.set_trigger('SELL', user_id, stock_symbol, amount)
     db.close_connection()
 
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER, username=user_id)
     response['status'] = 'success'
     response['matched_count'] = trigger_matched_count
     response['modified_count'] = trigger_modified_count
@@ -857,6 +873,7 @@ def cancel_set_sell():
     db.unset_trigger('SELL', user_id, stock_symbol)
     db.close_connection()
 
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.CANCEL_SET_SELL, username=user_id)
     response['status'] = 'success'
     response['matched_count'] = cancel_matched
     response['modified_count'] = cancel_modified
@@ -912,7 +929,7 @@ def dumplog():
 
     # Log as SystemEventType
     Logging.log_system_event(transactionNum=tx_num, command=CommandType.DUMPLOG, filename=filename)
-
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.DUMPLOG)
     response['status'] = 'success'
     response['message'] = 'Wrote logs to {}'.format(filename)
     return jsonify(response)
@@ -947,6 +964,8 @@ def display_summary():
     transactions = json.loads(json_util.dumps(db.get_user_transactions(args['userid'])))
     db.close_connection()
 
+    Logging.log_system_event(transactionNum=tx_num, command=CommandType.DISPLAY_SUMMARY, username=args['userid'])
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.DISPLAY_SUMMARY, username=args['userid'])
     response['transactions'] = transactions
     response['account'] = account
     response['status'] = 'success'
