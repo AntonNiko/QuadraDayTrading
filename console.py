@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import requests
 import sys
+import time
 from threading import Thread
 
 TX_SERVER_HOST = 'localhost'
@@ -20,8 +21,9 @@ with open(filename, 'r') as f:
     lines = f.readlines()
 
 users = {}
-
+num_of_commands = 0
 for line in lines:
+    num_of_commands+=1
     # Parse command and parameters from each line.
     commands_str = line.split(' ')[1]
     commands = commands_str.split(',')
@@ -140,6 +142,7 @@ def executeCommandsByUser(user, users):
 
 threads = []
 
+start_time = time.time()
 for user in users:
     if user != './testLOG\n':
         t = Thread(target=executeCommandsByUser, args=(user, users))
@@ -150,5 +153,9 @@ for t in threads:
 
 for t in threads:
     t.join()
+end_time = time.time()
 
-executeCommandsByUser('./testLOG\n', users)
+print('Finished in {} seconds.'.format(float(end_time-start_time)))
+print('Average TPS: {} '.format(float(num_of_commands/(end_time-start_time))))
+
+# executeCommandsByUser('./testLOG\n', users)
