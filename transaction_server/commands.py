@@ -10,6 +10,7 @@ import json
 from transaction_server.db import DB
 from transaction_server.logging import Logging, CommandType
 from transaction_server.quoteserver_client import QuoteServerClient
+from threading import Lock
 
 # Keep track of transactions for logging purposes.
 # TODO: Ensure it is thread-safe.
@@ -18,11 +19,14 @@ class TransactionNum:
         self.current_tx_num = 1
 
     def get_and_increment(self):
+        mutex.acquire()
         tx_num = self.current_tx_num
         self.current_tx_num+=1
+        mutex.release()
         return tx_num
 
 transaction_num = TransactionNum()
+mutex = Lock()
 
 bp = Blueprint('commands', __name__, url_prefix='/commands')
 
@@ -39,9 +43,9 @@ def add():
         The user's account is increased by the amount of money specified
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.ADD)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.ADD, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
@@ -85,9 +89,9 @@ def quote():
         The current price of the specified stock is displayed to the user
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.QUOTE)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.QUOTE, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
@@ -121,9 +125,9 @@ def buy():
         The user is asked to confirm or cancel the transaction
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.BUY)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.BUY, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
@@ -192,9 +196,9 @@ def commit_buy():
         (b) the user's account for the given stock is increased by the purchase amount
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.COMMIT_BUY)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.COMMIT_BUY, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
@@ -270,9 +274,9 @@ def cancel_buy():
         The last BUY command is canceled and any allocated system resources are reset and released.
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_BUY)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_BUY, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
@@ -328,9 +332,9 @@ def sell():
         The user is asked to confirm or cancel the given transaction
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.SELL)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.SELL, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
@@ -411,10 +415,9 @@ def commit_sell():
         (b) the user's cash account is increased by the sell amount
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.COMMIT_SELL)
-    response = {'status': None}
     args = dict(request.args)
-
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.COMMIT_SELL, username=args['userid'])
+    response = {'status': None}
     try:
         assert 'userid' in args, 'userid parameter not provided'
     except AssertionError as err:
@@ -487,9 +490,9 @@ def cancel_sell():
         The last SELL command is canceled and any allocated system resources are reset and released.
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SELL)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SELL, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
@@ -546,9 +549,9 @@ def set_buy_amount():
         (c) when the trigger point is reached the user's stock account is updated to reflect the BUY transaction.
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
@@ -604,9 +607,9 @@ def cancel_set_buy():
         (b) the BUY_TRIGGER for the given user and stock is also canceled.
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
@@ -664,9 +667,9 @@ def set_buy_trigger():
         The set of the user's buy triggers is updated to include the specified trigger
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
@@ -714,9 +717,9 @@ def set_sell_amount():
         A trigger is initialized for this username/stock symbol combination, but is not complete until SET_SELL_TRIGGER is executed.
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
@@ -782,9 +785,9 @@ def set_sell_trigger():
         (c) the set of the user's sell triggers is updated to include the specified trigger.
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
@@ -840,9 +843,9 @@ def cancel_set_sell():
         (b) all user account information is reset to the values they would have been if the given SET_SELL command had not been issued
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SET_SELL)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SET_SELL, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
@@ -900,9 +903,9 @@ def dumplog():
     Output is to specified filename appended with date and time it was created, to keep unique logs.
     '''
     tx_num = transaction_num.get_and_increment()
+    args = dict(request.args)
     Logging.log_debug(transactionNum=tx_num, command=CommandType.DUMPLOG)
     response = {'status': None}
-    args = dict(request.args)
 
     try:
         assert 'filename' in args, 'filename parameter not provided'
@@ -945,9 +948,9 @@ def display_summary():
 	    A summary of the given user's transaction history and the current status of their accounts as well as any set buy or sell triggers and their parameters is displayed to the user.
     '''
     tx_num = transaction_num.get_and_increment()
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.DISPLAY_SUMMARY)
-    response = {'status': None}
     args = dict(request.args)
+    Logging.log_debug(transactionNum=tx_num, command=CommandType.DISPLAY_SUMMARY, username=args['userid'])
+    response = {'status': None}
 
     try:
         assert 'userid' in args, 'userid parameter not provided'
