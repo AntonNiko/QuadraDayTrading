@@ -5,7 +5,7 @@ import time
 from threading import Thread
 
 TX_SERVER_HOST = 'localhost'
-TX_SERVER_PORT = 8000
+TX_SERVER_PORT = 8002
 TX_SERVER_URL  = 'http://{}:{}'.format(TX_SERVER_HOST, TX_SERVER_PORT)
 
 # User must provide workload file.
