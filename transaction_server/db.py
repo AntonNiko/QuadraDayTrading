@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 from pymongo import MongoClient
 
-HOST = 'db'
+HOST = 'mongos1'
 DB_PORT = 27017
 USERNAME = 'root'
 PASSWORD = 'rootpassword'
 
 class DB():
+    '''
+    The following collections are being used for this application:
+        accounts (w/ userid as key)
+        logs
+        pending_transactions (w/ userid as key)
+    '''
+
     def __init__(self):
         self.client = MongoClient(host=HOST, port=DB_PORT) # , username=USERNAME, password=PASSWORD
         self.db = self.client.day_trading
