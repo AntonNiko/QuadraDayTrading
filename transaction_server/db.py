@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
+import os
 from pymongo import MongoClient
 
-HOST = 'mongos1'
+HOST = os.environ['DB_HOST']
 DB_PORT = 27017
-USERNAME = 'root'
-PASSWORD = 'rootpassword'
 
 class DB():
     '''
@@ -15,7 +14,7 @@ class DB():
     '''
 
     def __init__(self):
-        self.client = MongoClient(host=HOST, port=DB_PORT) # , username=USERNAME, password=PASSWORD
+        self.client = MongoClient(host=HOST, port=DB_PORT)
         self.db = self.client.day_trading
 
     def does_account_exist(self, user_id):

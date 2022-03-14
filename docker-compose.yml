@@ -1,10 +1,29 @@
 services:
-  transaction_server:
+  transaction_server1:
     build: ./transaction_server
+    command: flask run --port=8000
     ports:
-      - "8000:5000"
+      - "8000:8000"
     volumes:
       - ./logs:/app/logs
+    environment:
+      - DB_HOST=mongos1
+  transaction_server2:
+    build: ./transaction_server
+    command: flask run --port=8001
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./logs:/app/logs
+    environment:
+      - DB_HOST=mongos2
+  nginx_app:
+    build: ./nginx_app
+    ports:
+      - "8002:8002"
+    depends_on:
+      - transaction_server1
+      - transaction_server2
   mongos1:
     container_name: mongos1
     image: mongo
