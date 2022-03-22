@@ -1,5 +1,6 @@
 services:
   transaction_server1:
+    container_name: transaction_server1
     build: ./transaction_server
     command: flask run --port=8000
     ports:
@@ -9,6 +10,7 @@ services:
     environment:
       - DB_HOST=mongos1
   transaction_server2:
+    container_name: transaction_server2
     build: ./transaction_server
     command: flask run --port=8001
     ports:
@@ -24,6 +26,14 @@ services:
     depends_on:
       - transaction_server1
       - transaction_server2
+  redis:
+    image: 'bitnami/redis:latest'
+    ports:
+      - 6319:6379
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - /redis_data:/bitnami
   mongos1:
     container_name: mongos1
     image: mongo

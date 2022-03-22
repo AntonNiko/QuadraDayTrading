@@ -3,37 +3,23 @@
 This blueprint provides an API to process all user commands specified in:
 https://www.ece.uvic.ca/~seng468/ProjectWebSite/Commands.html
 '''
-from flask import Blueprint, jsonify, request
-import time
 from bson import json_util
+from flask import Blueprint, jsonify, request
 import json
+import time
+from transaction_server.cache import Cache
 from transaction_server.db import DB
 from transaction_server.logging import Logging, CommandType
 from transaction_server.quoteserver_client import QuoteServerClient
-from threading import Lock
-
-# Keep track of transactions for logging purposes.
-# TODO: Ensure it is thread-safe.
-class TransactionNum:
-    def __init__(self):
-        self.current_tx_num = 1
-
-    def get_and_increment(self):
-        mutex.acquire()
-        tx_num = self.current_tx_num
-        self.current_tx_num+=1
-        mutex.release()
-        return tx_num
-
-transaction_num = TransactionNum()
-mutex = Lock()
 
 bp = Blueprint('commands', __name__, url_prefix='/commands')
+cache = Cache()
 
 @bp.route('/add', methods=['GET'])
 def add():
     '''
 	Add the given amount of money to the user's account. GET parameters are:
+        command_num: Command number
         userid: Username
         amount: Amount to add to username's account.
 
@@ -42,18 +28,20 @@ def add():
     Post-conditions:
         The user's account is increased by the amount of money specified
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.ADD, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
         assert 'amount' in args, 'amount parameter not provided'
 
-        # If account does nto exist, create.
+        # If account does not exist, create.
+        tx_num = int(args['tx_num'])
         user_id = args['userid']
         amount = float(args['amount'])
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.ADD, username=user_id)
         db = DB()
         if not db.does_account_exist(user_id):
             db.create_account(user_id)
@@ -88,14 +76,19 @@ def quote():
     Post-conditions:
         The current price of the specified stock is displayed to the user
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.QUOTE, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
         assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
+
+        tx_num = int(args['tx_num'])
+        user_id = args['userid']
+        stock_symbol = args['stocksymbol']
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.QUOTE, username=user_id)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -104,8 +97,8 @@ def quote():
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.QUOTE, errorMessage=str(err))
         return jsonify(response)
 
-    price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
-    Logging.log_user_command(transactionNum=tx_num, command=CommandType.QUOTE, username=args['userid'])
+    price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(stock_symbol, user_id, tx_num)
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.QUOTE, username=user_id)
     response['status'] = 'success'
     response['price'] = price
     response['symbol'] = symbol
@@ -124,15 +117,21 @@ def buy():
     Post-conditions:
         The user is asked to confirm or cancel the transaction
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.BUY, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
         assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
         assert 'amount' in args, 'amount parameter not provided'
+
+        tx_num = int(args['tx_num'])
+        userid = args['userid']
+        stocksymbol = args['stocksymbol']
+        amount = float(args['amount'])
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.BUY, username=userid)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -140,9 +139,6 @@ def buy():
 
     # Ensure account exists and balance is sufficient.
     db = DB()
-    userid = args['userid']
-    stocksymbol = args['stocksymbol']
-    amount = float(args['amount'])
 
     if not db.does_account_exist(userid):
         response['status'] = 'failure'
@@ -195,13 +191,17 @@ def commit_buy():
         (a) The user's cash account is decreased by the amount used to purchase the stock
         (b) the user's account for the given stock is increased by the purchase amount
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.COMMIT_BUY, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
+
+        tx_num = int(args['tx_num'])
+        user_id = args['userid']
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.COMMIT_BUY, username=user_id)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -212,7 +212,6 @@ def commit_buy():
 
     # Ensure latest buy command exists and is less than 60 seconds old.
     db = DB()
-    user_id = args['userid']
 
     pending_transaction = db.get_pending_transaction(user_id, 'BUY')
     if not pending_transaction:
@@ -273,13 +272,17 @@ def cancel_buy():
     Post-conditions:
         The last BUY command is canceled and any allocated system resources are reset and released.
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_BUY, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
+
+        tx_num = int(args['tx_num'])
+        userid = args['userid']
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_BUY, username=userid)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -290,7 +293,6 @@ def cancel_buy():
 
     # Ensure latest buy command exists and is less than 60 seconds old.
     db = DB()
-    userid = args['userid']
 
     pending_transaction = db.get_pending_transaction(userid, 'BUY')
     if not pending_transaction:
@@ -312,7 +314,7 @@ def cancel_buy():
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_BUY, errorMessage=response['message'])
         return jsonify(response)
 
-    Logging.log_user_command(transactionNum=tx_num, command=CommandType.CANCEL_BUY, username=args['userid'])
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.CANCEL_BUY, username=userid)
 
     # Delete pending BUY transaction such that COMMIT_BUY will not find any pending transactions.
     deleted_count = db.delete_pending_transaction(userid, 'BUY')
@@ -331,15 +333,21 @@ def sell():
     Post-conditions:
         The user is asked to confirm or cancel the given transaction
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.SELL, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
         assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
         assert 'amount' in args, 'amount parameter not provided'
+
+        tx_num = int(args['tx_num'])
+        userid = args['userid']
+        stocksymbol = args['stocksymbol']
+        amount = float(args['amount'])
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.SELL, username=userid)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -350,9 +358,6 @@ def sell():
 
     # Ensure account exists and user owns enough stock to sell at the price specified.
     db = DB()
-    userid = args['userid']
-    stocksymbol = args['stocksymbol']
-    amount = float(args['amount'])
 
     if not db.does_account_exist(userid):
         response['status'] = 'failure'
@@ -373,7 +378,7 @@ def sell():
         return jsonify(response)
 
     # Get quote for stock and determine nearest whole number of shares that can be bought.
-    price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(args['stocksymbol'], args['userid'], tx_num)
+    price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(stocksymbol, userid, tx_num)
     total_share_value = amount * price
 
     if amount > user_stocks[stocksymbol]: # total_share_value
@@ -393,7 +398,7 @@ def sell():
     db.add_pending_transaction(userid, 'SELL', stocksymbol, amount, time.time())
     db.close_connection()
 
-    Logging.log_user_command(transactionNum=tx_num, command=CommandType.SELL, username=args['userid'])
+    Logging.log_user_command(transactionNum=tx_num, command=CommandType.SELL, username=userid)
     response['status'] = 'success'
     response['message'] = 'Successfully registered pending transaction. Confirm sell within 60 seconds.'
     response['price'] = price
@@ -414,12 +419,16 @@ def commit_sell():
         (a) the user's account for the given stock is decremented by the sale amount
         (b) the user's cash account is increased by the sell amount
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.COMMIT_SELL, username=args['userid'])
     response = {'status': None}
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
+
+        tx_num = int(args['tx_num'])
+        user_id = args['userid']
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.COMMIT_SELL, username=user_id)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -430,7 +439,6 @@ def commit_sell():
 
     # Ensure latest sell command exists and is less than 60 seconds old.
     db = DB()
-    user_id = args['userid']
 
     pending_transaction = db.get_pending_transaction(user_id, 'SELL')
     if not pending_transaction:
@@ -489,13 +497,17 @@ def cancel_sell():
     Post-conditions:
         The last SELL command is canceled and any allocated system resources are reset and released.
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SELL, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
+
+        tx_num = int(args['tx_num'])
+        userid = args['userid']
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SELL, username=userid)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -506,7 +518,6 @@ def cancel_sell():
 
     # Ensure latest sell command exists and is less than 60 seconds old.
     db = DB()
-    userid = args['userid']
 
     pending_transaction = db.get_pending_transaction(userid, 'SELL')
     if not pending_transaction:
@@ -548,15 +559,21 @@ def set_buy_amount():
         (b) the user's cash account is decremented by the specified amount
         (c) when the trigger point is reached the user's stock account is updated to reflect the BUY transaction.
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
         assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
         assert 'amount' in args, 'amount parameter not provided'
+
+        tx_num = int(args['tx_num'])
+        user_id = args['userid']
+        stock_symbol = args['stocksymbol']
+        amount = float(args['amount'])
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT, username=user_id)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -564,10 +581,6 @@ def set_buy_amount():
         # Log as ErrorEventType
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT, errorMessage=response['message'])
         return jsonify(response)
-
-    user_id = args['userid']
-    stock_symbol = args['stocksymbol']
-    amount = float(args['amount'])
 
     # Ensure user has enough cash in their account.
     db = DB()
@@ -606,14 +619,19 @@ def cancel_set_buy():
         (a) All accounts are reset to the values they would have had had the SET_BUY Command not been issued
         (b) the BUY_TRIGGER for the given user and stock is also canceled.
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
         assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
+
+        tx_num = int(args['tx_num'])
+        user_id = args['userid']
+        stock_symbol = args['stocksymbol']
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY, username=user_id)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -621,9 +639,6 @@ def cancel_set_buy():
         # Log as ErrorEventType
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY, errorMessage=response['message'])
         return jsonify(response)
-
-    user_id = args['userid']
-    stock_symbol = args['stocksymbol']
 
     # Ensure account exists
     db = DB()
@@ -666,15 +681,21 @@ def set_buy_trigger():
     Post-conditions:
         The set of the user's buy triggers is updated to include the specified trigger
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
         assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
         assert 'amount' in args, 'amount parameter not provided'
+
+        tx_num = int(args['tx_num'])
+        user_id = args['userid']
+        stock_symbol = args['stocksymbol']
+        amount = float(args['amount'])
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER, username=user_id)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -682,10 +703,6 @@ def set_buy_trigger():
         # Log as ErrorEventType
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER, errorMessage=response['message'])
         return jsonify(response)
-
-    user_id = args['userid']
-    stock_symbol = args['stocksymbol']
-    amount = float(args['amount'])
 
     # Ensure set buy amount exists for user's stock.
     db = DB()
@@ -716,15 +733,21 @@ def set_sell_amount():
     Post-conditions:
         A trigger is initialized for this username/stock symbol combination, but is not complete until SET_SELL_TRIGGER is executed.
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
         assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
         assert 'amount' in args, 'amount parameter not provided'
+
+        tx_num = int(args['tx_num'])
+        user_id = args['userid']
+        stock_symbol = args['stocksymbol']
+        amount = float(args['amount'])
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, username=user_id)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -732,10 +755,6 @@ def set_sell_amount():
         # Log as ErrorEventType
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, errorMessage=response['message'])
         return jsonify(response)
-
-    user_id = args['userid']
-    stock_symbol = args['stocksymbol']
-    amount = float(args['amount'])
 
     # Ensure user owns sufficient amount of stock at the current price.
     db = DB()
@@ -784,15 +803,21 @@ def set_sell_trigger():
         (b) the user account for the given stock is reduced by the max number of stocks that could be purchased and
         (c) the set of the user's sell triggers is updated to include the specified trigger.
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
         assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
         assert 'amount' in args, 'amount parameter not provided'
+
+        tx_num = int(args['tx_num'])
+        user_id = args['userid']
+        stock_symbol = args['stocksymbol']
+        amount = float(args['amount'])
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER, username=user_id)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -800,10 +825,6 @@ def set_sell_trigger():
         # Log as ErrorEventType
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER, errorMessage=response['message'])
         return jsonify(response)
-
-    user_id = args['userid']
-    stock_symbol = args['stocksymbol']
-    amount = float(args['amount'])
 
     # Ensure SELL trigger for that stock exists.
     db = DB()
@@ -842,14 +863,19 @@ def cancel_set_sell():
         (a) The set of the user's sell triggers is updated to remove the sell trigger associated with the specified stock
         (b) all user account information is reset to the values they would have been if the given SET_SELL command had not been issued
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SET_SELL, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
         assert 'stocksymbol' in args, 'stocksymbol parameter not provided'
+
+        tx_num = int(args['tx_num'])
+        user_id = args['userid']
+        stock_symbol = args['stocksymbol']
+
+        Logging.log_debug(transactionNum=tx_num, command=CommandType.CANCEL_SET_SELL, username=user_id)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -857,9 +883,6 @@ def cancel_set_sell():
         # Log as ErrorEventType
         Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SET_SELL, errorMessage=response['message'])
         return jsonify(response)
-
-    user_id = args['userid']
-    stock_symbol = args['stocksymbol']
 
     # Cancel, or return that no reserve sells were found.
     db = DB()
@@ -902,19 +925,20 @@ def dumplog():
 
     Output is to specified filename appended with date and time it was created, to keep unique logs.
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.DUMPLOG)
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'filename' in args, 'filename parameter not provided'
+
+        Logging.log_debug(transactionNum=int(args['tx_num']), command=CommandType.DUMPLOG)
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.DUMPLOG, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=int(args['tx_num']), command=CommandType.DUMPLOG, errorMessage=response['message'])
         return jsonify(response)
 
     # Query logs
@@ -931,8 +955,8 @@ def dumplog():
     logs_xml.write('logs/{}.xml'.format(filename), encoding='utf-8')
 
     # Log as SystemEventType
-    Logging.log_system_event(transactionNum=tx_num, command=CommandType.DUMPLOG, filename=filename)
-    Logging.log_user_command(transactionNum=tx_num, command=CommandType.DUMPLOG)
+    Logging.log_system_event(transactionNum=int(args['tx_num']), command=CommandType.DUMPLOG, filename=filename)
+    Logging.log_user_command(transactionNum=int(args['tx_num']), command=CommandType.DUMPLOG)
     response['status'] = 'success'
     response['message'] = 'Wrote logs to {}'.format(filename)
     return jsonify(response)
@@ -947,19 +971,20 @@ def display_summary():
     Post-conditions:
 	    A summary of the given user's transaction history and the current status of their accounts as well as any set buy or sell triggers and their parameters is displayed to the user.
     '''
-    tx_num = transaction_num.get_and_increment()
     args = dict(request.args)
-    Logging.log_debug(transactionNum=tx_num, command=CommandType.DISPLAY_SUMMARY, username=args['userid'])
     response = {'status': None}
 
     try:
+        assert 'tx_num' in args, 'tx_num paramter not provided'
         assert 'userid' in args, 'userid parameter not provided'
+
+        Logging.log_debug(transactionNum=int(args['tx_num']), command=CommandType.DISPLAY_SUMMARY, username=args['userid'])
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.DISPLAY_SUMMARY, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=int(args['tx_num']), command=CommandType.DISPLAY_SUMMARY, errorMessage=response['message'])
         return jsonify(response)
 
     db = DB()
@@ -967,8 +992,8 @@ def display_summary():
     transactions = json.loads(json_util.dumps(db.get_user_transactions(args['userid'])))
     db.close_connection()
 
-    Logging.log_system_event(transactionNum=tx_num, command=CommandType.DISPLAY_SUMMARY, username=args['userid'])
-    Logging.log_user_command(transactionNum=tx_num, command=CommandType.DISPLAY_SUMMARY, username=args['userid'])
+    Logging.log_system_event(transactionNum=int(args['tx_num']), command=CommandType.DISPLAY_SUMMARY, username=args['userid'])
+    Logging.log_user_command(transactionNum=int(args['tx_num']), command=CommandType.DISPLAY_SUMMARY, username=args['userid'])
     response['transactions'] = transactions
     response['account'] = account
     response['status'] = 'success'
