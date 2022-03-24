@@ -16,13 +16,23 @@ The system runs on Ubuntu 18/20. The following must be installed:
  * Pip3
 
 ## Install and Run
-Install dependencies in `requirements.txt` to install docker-compose:
+1. Ensure the following tools are installed so that dependencies are satisfied:
+* `setuptools-rust`: Install with pip3
+Then, upgrade pip3 by running `pip3 install --upgrade pip`.
+
+
+2. Install dependencies in `requirements.txt` to install docker-compose:
 
 ```bash
 pip3 install -r requirements.txt
 ```
 
-Ensure any running instances of `mongod` are sttopped such that port `27017` is available:
+3. Provide permissions to the Redis cache volume by chmod'ing the shared volume to 777:
+```bash
+sudo chmod 777 redis/
+```
+
+4. Ensure any running instances of `mongod` are stopped such that port `27017` is available:
 
 ```bash
 docker-compose up

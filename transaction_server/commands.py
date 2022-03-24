@@ -57,7 +57,7 @@ def add():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.ADD, errorMessage=str(err))
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.ADD, errorMessage=str(err))
         return jsonify(response)
 
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.ADD, username=user_id)
@@ -94,7 +94,7 @@ def quote():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.QUOTE, errorMessage=str(err))
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.QUOTE, errorMessage=str(err))
         return jsonify(response)
 
     price, symbol, username, timestamp, cryptokey = QuoteServerClient.get_quote(stock_symbol, user_id, tx_num)
@@ -207,7 +207,7 @@ def commit_buy():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_BUY, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.COMMIT_BUY, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure latest buy command exists and is less than 60 seconds old.
@@ -288,7 +288,7 @@ def cancel_buy():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_BUY, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.CANCEL_BUY, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure latest buy command exists and is less than 60 seconds old.
@@ -353,7 +353,7 @@ def sell():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SELL, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.SELL, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure account exists and user owns enough stock to sell at the price specified.
@@ -434,7 +434,7 @@ def commit_sell():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.COMMIT_SELL, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.COMMIT_SELL, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure latest sell command exists and is less than 60 seconds old.
@@ -513,7 +513,7 @@ def cancel_sell():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SELL, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.CANCEL_SELL, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure latest sell command exists and is less than 60 seconds old.
@@ -579,7 +579,7 @@ def set_buy_amount():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.SET_BUY_AMOUNT, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure user has enough cash in their account.
@@ -637,7 +637,7 @@ def cancel_set_buy():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.CANCEL_SET_BUY, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure account exists
@@ -701,7 +701,7 @@ def set_buy_trigger():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.SET_BUY_TRIGGER, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure set buy amount exists for user's stock.
@@ -753,7 +753,7 @@ def set_sell_amount():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.SET_SELL_AMOUNT, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure user owns sufficient amount of stock at the current price.
@@ -823,7 +823,7 @@ def set_sell_trigger():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.SET_SELL_TRIGGER, errorMessage=response['message'])
         return jsonify(response)
 
     # Ensure SELL trigger for that stock exists.
@@ -881,7 +881,7 @@ def cancel_set_sell():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=tx_num, command=CommandType.CANCEL_SET_SELL, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.CANCEL_SET_SELL, errorMessage=response['message'])
         return jsonify(response)
 
     # Cancel, or return that no reserve sells were found.
@@ -938,7 +938,7 @@ def dumplog():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=int(args['tx_num']), command=CommandType.DUMPLOG, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.DUMPLOG, errorMessage=response['message'])
         return jsonify(response)
 
     # Query logs
@@ -984,7 +984,7 @@ def display_summary():
         response['message'] = str(err)
 
         # Log as ErrorEventType
-        Logging.log_error_event(transactionNum=int(args['tx_num']), command=CommandType.DISPLAY_SUMMARY, errorMessage=response['message'])
+        Logging.log_error_event(transactionNum=args.get('tx_num', 99999), command=CommandType.DISPLAY_SUMMARY, errorMessage=response['message'])
         return jsonify(response)
 
     db = DB()
