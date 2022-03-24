@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 MIN_TIMESTAMP_LIMIT = 1641024000000
 MAX_TIMESTAMP_LIMIT = 1651388400000
 SERVER_NAME = socket.gethostname()
+db = DB()
 
 # Logging functionality for transaction server. Validation is performed
 # according to the following:
@@ -61,9 +62,7 @@ class Logging():
         log_params['server'] = SERVER_NAME
         log_params['timestamp'] = int(time.time() * 1000) # ms
 
-        db = DB()
         inserted_id = db.add_log(log_params)
-        db.close_connection()
         return inserted_id
 
     @staticmethod

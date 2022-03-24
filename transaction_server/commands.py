@@ -14,6 +14,7 @@ from transaction_server.quoteserver_client import QuoteServerClient
 
 bp = Blueprint('commands', __name__, url_prefix='/commands')
 cache = Cache()
+db = DB()
 
 @bp.route('/add', methods=['GET'])
 def add():
@@ -42,7 +43,6 @@ def add():
         amount = float(args['amount'])
 
         Logging.log_debug(transactionNum=tx_num, command=CommandType.ADD, username=user_id)
-        db = DB()
         if not db.does_account_exist(user_id):
             db.create_account(user_id)
 
@@ -50,8 +50,6 @@ def add():
 
         # Log as AccountTransactionType with updated balance
         Logging.log_account_transaction(transactionNum=tx_num, action='add', username=user_id, funds=float(db.get_account(user_id)['balance']))
-
-        db.close_connection()
     except AssertionError as err:
         response['status'] = 'failure'
         response['message'] = str(err)
@@ -141,8 +139,6 @@ def buy():
         return jsonify(response)
 
     # Ensure account exists and balance is sufficient.
-    db = DB()
-
     if not db.does_account_exist(userid):
         response['status'] = 'failure'
         response['message'] = 'Account does not exist.'
@@ -169,7 +165,6 @@ def buy():
     if cache.get_pending_transaction(userid, 'BUY'):
         cache.delete_pending_transaction(userid, 'BUY')
     cache.add_pending_transaction(userid, 'BUY', stocksymbol, amount, time.time()) # (shares_to_buy * price)
-    db.close_connection()
 
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.BUY, username=args['userid'])
 
@@ -214,8 +209,6 @@ def commit_buy():
         return jsonify(response)
 
     # Ensure latest buy command exists and is less than 60 seconds old.
-    db = DB()
-
     pending_transaction = cache.get_pending_transaction(user_id, 'BUY')
     if not pending_transaction:
         response['status'] = 'failure'
@@ -254,8 +247,6 @@ def commit_buy():
 
     # Increase account amount of stock owned
     portfolio_matched_count, portfolio_modified_count = db.increase_stock_portfolio_amount(user_id, stock_symbol, amount)
-    db.close_connection()
-
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.COMMIT_BUY, username=user_id)
 
     response['status'] = 'success'
@@ -295,8 +286,6 @@ def cancel_buy():
         return jsonify(response)
 
     # Ensure latest buy command exists and is less than 60 seconds old.
-    db = DB()
-
     pending_transaction = cache.get_pending_transaction(userid, 'BUY')
     if not pending_transaction:
         response['status'] = 'failure'
@@ -360,8 +349,6 @@ def sell():
         return jsonify(response)
 
     # Ensure account exists and user owns enough stock to sell at the price specified.
-    db = DB()
-
     if not db.does_account_exist(userid):
         response['status'] = 'failure'
         response['message'] = 'Account does not exist.'
@@ -399,7 +386,6 @@ def sell():
     if cache.get_pending_transaction(userid, 'SELL'):
         cache.delete_pending_transaction(userid, 'SELL')
     cache.add_pending_transaction(userid, 'SELL', stocksymbol, amount, time.time())
-    db.close_connection()
 
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.SELL, username=userid)
     response['status'] = 'success'
@@ -441,8 +427,6 @@ def commit_sell():
         return jsonify(response)
 
     # Ensure latest sell command exists and is less than 60 seconds old.
-    db = DB()
-
     pending_transaction = cache.get_pending_transaction(user_id, 'SELL')
     if not pending_transaction:
         response['status'] = 'failure'
@@ -473,7 +457,6 @@ def commit_sell():
 
     # Decrease account amount of stock owned
     portfolio_matched_count, portfolio_modified_count = db.decrease_stock_portfolio_amount(user_id, stock_symbol, amount)
-    db.close_connection()
 
     # Increase account balance by specified amount
     matched_count, modified_count = db.add_money_to_account(user_id, amount)
@@ -520,8 +503,6 @@ def cancel_sell():
         return jsonify(response)
 
     # Ensure latest sell command exists and is less than 60 seconds old.
-    db = DB()
-
     pending_transaction = cache.get_pending_transaction(userid, 'SELL')
     if not pending_transaction:
         response['status'] = 'failure'
@@ -586,7 +567,6 @@ def set_buy_amount():
         return jsonify(response)
 
     # Ensure user has enough cash in their account.
-    db = DB()
     balance = db.get_account(user_id)['balance']
     if balance < amount:
         response['status'] = 'failure'
@@ -603,7 +583,6 @@ def set_buy_amount():
 
     # TODO: Replace any other existing buy amounts or just increment?
     reserve_matched_count, reserve_modified_count = db.add_buy_reserve_amount(user_id, stock_symbol, amount)
-    db.close_connection()
 
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.SET_BUY_AMOUNT, username=user_id)
     response['status'] = 'success'
@@ -644,7 +623,6 @@ def cancel_set_buy():
         return jsonify(response)
 
     # Ensure account exists
-    db = DB()
     if not db.does_account_exist(user_id):
         response['status'] = 'failure'
         response['message'] = 'Account does not exist.'
@@ -665,7 +643,6 @@ def cancel_set_buy():
 
     # Remove any buy triggers for that stock
     db.unset_trigger('BUY', user_id, stock_symbol)
-    db.close_connection()
 
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.CANCEL_SET_BUY, username=user_id)
     response['status'] = 'success'
@@ -708,7 +685,6 @@ def set_buy_trigger():
         return jsonify(response)
 
     # Ensure set buy amount exists for user's stock.
-    db = DB()
     if stock_symbol not in db.get_account(user_id)['reserve_buy']:
         response['status'] = 'failure'
         response['message'] = 'No buy reserve exists for stock {} for user {}'.format(stock_symbol, user_id)
@@ -718,7 +694,6 @@ def set_buy_trigger():
         return jsonify(response)
 
     db.set_trigger('BUY', user_id, stock_symbol, amount)
-    db.close_connection()
 
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.SET_BUY_TRIGGER, username=user_id)
     response['status'] = 'success'
@@ -760,7 +735,6 @@ def set_sell_amount():
         return jsonify(response)
 
     # Ensure user owns sufficient amount of stock at the current price.
-    db = DB()
     user_stocks = db.get_account(user_id)['stocks']
     if stock_symbol not in user_stocks:
         response['status'] = 'failure'
@@ -784,8 +758,6 @@ def set_sell_amount():
 
     # Add SELL reserve amount
     reserve_matched_count, reserve_modified_count = db.add_sell_reserve_amount(user_id, stock_symbol, amount)
-
-    db.close_connection()
 
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.SET_SELL_AMOUNT, username=user_id)
     response['status'] = 'success'
@@ -830,7 +802,6 @@ def set_sell_trigger():
         return jsonify(response)
 
     # Ensure SELL trigger for that stock exists.
-    db = DB()
     triggers = db.get_account(user_id)['sell_triggers']
     if stock_symbol not in triggers:
         response['status'] = 'failure'
@@ -847,7 +818,6 @@ def set_sell_trigger():
 
     # Set SELL trigger for stock at that price
     trigger_matched_count, trigger_modified_count = db.set_trigger('SELL', user_id, stock_symbol, amount)
-    db.close_connection()
 
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.SET_SELL_TRIGGER, username=user_id)
     response['status'] = 'success'
@@ -888,7 +858,6 @@ def cancel_set_sell():
         return jsonify(response)
 
     # Cancel, or return that no reserve sells were found.
-    db = DB()
     cancel_matched, cancel_modified = db.unset_sell_reserve_amount(user_id, stock_symbol)
     if cancel_modified == 0:
         response['status'] = 'failure'
@@ -900,7 +869,6 @@ def cancel_set_sell():
 
     # Remove any sell triggers for that stock
     db.unset_trigger('SELL', user_id, stock_symbol)
-    db.close_connection()
 
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.CANCEL_SET_SELL, username=user_id)
     response['status'] = 'success'
@@ -946,12 +914,10 @@ def dumplog():
 
     # Query logs
     filename = '{}-{}'.format(args['filename'], time.strftime('%Y%m%d-%H%M%S'))
-    db = DB()
     if 'userid' in args:
         logs = db.get_logs(args['userid'])
     else:
         logs = db.get_logs()
-    db.close_connection()
 
     # Convert logs to XML (Assume logs have been validated when entered.)
     logs_xml = Logging.convert_dicts_to_xml(logs)
@@ -990,10 +956,8 @@ def display_summary():
         Logging.log_error_event(transactionNum=int(args.get('tx_num', 99999)), command=CommandType.DISPLAY_SUMMARY, errorMessage=response['message'])
         return jsonify(response)
 
-    db = DB()
     account = json.loads(json_util.dumps(db.get_account(args['userid'])))
     transactions = json.loads(json_util.dumps(db.get_user_transactions(args['userid'])))
-    db.close_connection()
 
     Logging.log_system_event(transactionNum=int(args['tx_num']), command=CommandType.DISPLAY_SUMMARY, username=args['userid'])
     Logging.log_user_command(transactionNum=int(args['tx_num']), command=CommandType.DISPLAY_SUMMARY, username=args['userid'])
