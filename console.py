@@ -29,12 +29,12 @@ for line in lines:
 
     tx_num = split_line[0].strip('[').strip(']')
     command = [tx_num]
-    command.append(split_line[1].split(','))
+    command.extend(split_line[1].split(','))
 
-    if command[1] not in users:
-        users[command[1]] = [command]
+    if command[2] not in users:
+        users[command[2]] = [command]
     else:
-        users[command[1]].append(command)
+        users[command[2]].append(command)
 
 def executeCommandsByUser(user, users):
     for commands in users[user]:

@@ -166,9 +166,9 @@ def buy():
     shares_to_buy = amount//price
 
     # Add transaction as pending confirmation from user & delete any previous pending transactions
-    if db.get_pending_transaction(userid, 'BUY'):
-        db.delete_pending_transaction(userid, 'BUY')
-    db.add_pending_transaction(userid, 'BUY', stocksymbol, amount, time.time()) # (shares_to_buy * price)
+    if cache.get_pending_transaction(userid, 'BUY'):
+        cache.delete_pending_transaction(userid, 'BUY')
+    cache.add_pending_transaction(userid, 'BUY', stocksymbol, amount, time.time()) # (shares_to_buy * price)
     db.close_connection()
 
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.BUY, username=args['userid'])
@@ -216,7 +216,7 @@ def commit_buy():
     # Ensure latest buy command exists and is less than 60 seconds old.
     db = DB()
 
-    pending_transaction = db.get_pending_transaction(user_id, 'BUY')
+    pending_transaction = cache.get_pending_transaction(user_id, 'BUY')
     if not pending_transaction:
         response['status'] = 'failure'
         response['message'] = 'No pending BUY transaction found.'
@@ -241,7 +241,7 @@ def commit_buy():
         return jsonify(response)
 
     # Delete pending transaction
-    deleted_count = db.delete_pending_transaction(user_id, 'BUY')
+    deleted_count = cache.delete_pending_transaction(user_id, 'BUY')
     assert deleted_count == 1
 
     # Reduce account balance by specified amount
@@ -297,7 +297,7 @@ def cancel_buy():
     # Ensure latest buy command exists and is less than 60 seconds old.
     db = DB()
 
-    pending_transaction = db.get_pending_transaction(userid, 'BUY')
+    pending_transaction = cache.get_pending_transaction(userid, 'BUY')
     if not pending_transaction:
         response['status'] = 'failure'
         response['message'] = 'No pending BUY transaction found.'
@@ -320,7 +320,7 @@ def cancel_buy():
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.CANCEL_BUY, username=userid)
 
     # Delete pending BUY transaction such that COMMIT_BUY will not find any pending transactions.
-    deleted_count = db.delete_pending_transaction(userid, 'BUY')
+    deleted_count = cache.delete_pending_transaction(userid, 'BUY')
     response['status'] = 'success'
     response['message'] = 'Successfully cancelled {} BUY transactions'.format(deleted_count)
     return jsonify(response)
@@ -396,9 +396,9 @@ def sell():
     # Add transaction as pending confirmation from user.
     # TODO: Replace with Redis?
     # Delete any previous pending transactions
-    if db.get_pending_transaction(userid, 'SELL'):
-        db.delete_pending_transaction(userid, 'SELL')
-    db.add_pending_transaction(userid, 'SELL', stocksymbol, amount, time.time())
+    if cache.get_pending_transaction(userid, 'SELL'):
+        cache.delete_pending_transaction(userid, 'SELL')
+    cache.add_pending_transaction(userid, 'SELL', stocksymbol, amount, time.time())
     db.close_connection()
 
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.SELL, username=userid)
@@ -443,7 +443,7 @@ def commit_sell():
     # Ensure latest sell command exists and is less than 60 seconds old.
     db = DB()
 
-    pending_transaction = db.get_pending_transaction(user_id, 'SELL')
+    pending_transaction = cache.get_pending_transaction(user_id, 'SELL')
     if not pending_transaction:
         response['status'] = 'failure'
         response['message'] = 'No pending SELL transaction found.'
@@ -468,7 +468,7 @@ def commit_sell():
         return jsonify(response)
 
     # Delete pending transaction
-    deleted_count = db.delete_pending_transaction(user_id, 'SELL')
+    deleted_count = cache.delete_pending_transaction(user_id, 'SELL')
     assert deleted_count == 1
 
     # Decrease account amount of stock owned
@@ -522,7 +522,7 @@ def cancel_sell():
     # Ensure latest sell command exists and is less than 60 seconds old.
     db = DB()
 
-    pending_transaction = db.get_pending_transaction(userid, 'SELL')
+    pending_transaction = cache.get_pending_transaction(userid, 'SELL')
     if not pending_transaction:
         response['status'] = 'failure'
         response['message'] = 'No pending SELL transaction found.'
@@ -545,7 +545,7 @@ def cancel_sell():
     Logging.log_user_command(transactionNum=tx_num, command=CommandType.CANCEL_SELL, username=userid)
 
     # Delete pending SELL transaction such that COMMIT_SELL will not find any pending transactions.
-    deleted_count = db.delete_pending_transaction(userid, 'SELL')
+    deleted_count = cache.delete_pending_transaction(userid, 'SELL')
     response['status'] = 'success'
     response['message'] = 'Successfully cancelled {} SELL transactions'.format(deleted_count)
     return jsonify(response)

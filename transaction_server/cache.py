@@ -1,4 +1,4 @@
-from json import dumps
+from json import dumps, loads
 import redis
 
 cache = redis.StrictRedis(host='redis', port=6379)
@@ -37,6 +37,9 @@ class Cache():
         else:
             value = cache.hget(CACHE_PENDING_SELL_TX_NAME, user_id)
 
+        # Convert to JSON
+        if value:
+            return loads(value)
         return value
 
     def delete_pending_transaction(self, user_id, tx_type):
@@ -45,9 +48,9 @@ class Cache():
         exists.
         '''     
         if tx_type == 'BUY':
-            cache.hdel(CACHE_PENDING_BUY_TX_NAME, user_id)
+            return cache.hdel(CACHE_PENDING_BUY_TX_NAME, user_id)
         else:
-            cache.hdel(CACHE_PENDING_SELL_TX_NAME, user_id)
+            return cache.hdel(CACHE_PENDING_SELL_TX_NAME, user_id)
 
 
 
