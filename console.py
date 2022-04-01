@@ -40,115 +40,121 @@ def executeCommandsByUser(user, users):
     for commands in users[user]:
         tx_num = commands[0]
         command = commands[1]
-        if command == 'ADD':
-            user_id = commands[2]
-            amount  = commands[3]
-            r = requests.get('{}/commands/add?tx_num={}&userid={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, amount))
-            assert r.status_code == 200
 
-        elif command == 'QUOTE':
-            user_id = commands[2]
-            stock_symbol = commands[3]
-            r = requests.get('{}/commands/quote?tx_num={}&userid={}&stocksymbol={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol))
-            assert r.status_code == 200
-
-        elif command == 'BUY':
-            user_id = commands[2]
-            stock_symbol = commands[3]
-            amount = commands[4]
-            r = requests.get('{}/commands/buy?tx_num={}&userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol, amount))
-            assert r.status_code == 200
-
-        elif command == 'COMMIT_BUY':
-            user_id = commands[2]
-            r = requests.get('{}/commands/commit_buy?tx_num={}&userid={}'.format(TX_SERVER_URL, tx_num, user_id))
-            assert r.status_code == 200
-
-        elif command == 'CANCEL_BUY':
-            user_id = commands[2]
-            r = requests.get('{}/commands/cancel_buy?tx_num={}&userid={}'.format(TX_SERVER_URL, tx_num, user_id))
-            assert r.status_code == 200
-
-        elif command == 'SELL':
-            user_id = commands[2]
-            stock_symbol = commands[3]
-            amount = commands[4]
-            r = requests.get('{}/commands/sell?tx_num={}&userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol, amount))
-            assert r.status_code == 200
-
-        elif command == 'COMMIT_SELL':
-            user_id = commands[2]
-            r = requests.get('{}/commands/commit_sell?tx_num={}&userid={}'.format(TX_SERVER_URL, tx_num, user_id))
-            assert r.status_code == 200
-
-        elif command == 'DISPLAY_SUMMARY':
-            user_id = commands[2]
-            r = requests.get('{}/commands/display_summary?tx_num={}&userid={}'.format(TX_SERVER_URL, tx_num, user_id))
-            print(r.content)
-            assert r.status_code == 200
-
-        elif command == 'CANCEL_SELL':
-            user_id = commands[2]
-            r = requests.get('{}/commands/cancel_sell?tx_num={}&userid={}'.format(TX_SERVER_URL, tx_num, user_id))
-            assert r.status_code == 200
-
-        elif command == 'SET_BUY_AMOUNT':
-            user_id = commands[2]
-            stock_symbol = commands[3]
-            amount = commands[4]
-            r = requests.get('{}/commands/set_buy_amount?tx_num={}&userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol, amount))
-            assert r.status_code == 200
-
-        elif command == 'CANCEL_SET_BUY':
-            user_id = commands[2]
-            stock_symbol = commands[3]
-            r = requests.get('{}/commands/cancel_set_buy?tx_num={}&userid={}&stocksymbol={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol))
-            assert r.status_code == 200
-
-        elif command == 'SET_BUY_TRIGGER':
-            user_id = commands[2]
-            stock_symbol = commands[3]
-            amount = commands[4]
-            r = requests.get('{}/commands/set_buy_trigger?tx_num={}&userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol, amount))
-            assert r.status_code == 200
-
-        elif command == 'SET_SELL_AMOUNT':
-            user_id = commands[2]
-            stock_symbol = commands[3]
-            amount = commands[4]
-            r = requests.get('{}/commands/set_sell_amount?tx_num={}&userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol, amount))
-            assert r.status_code == 200
-
-        elif command == 'SET_SELL_TRIGGER':
-            user_id = commands[2]
-            stock_symbol = commands[3]
-            amount = commands[4]
-            r = requests.get('{}/commands/set_sell_trigger?tx_num={}&userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol, amount))
-            assert r.status_code == 200
-
-        elif command == 'CANCEL_SET_SELL':
-            user_id = commands[2]
-            stock_symbol = commands[3]
-            r = requests.get('{}/commands/cancel_set_sell?tx_num={}&userid={}&stocksymbol={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol))
-            assert r.status_code == 200
-
-        elif command == 'DUMPLOG':
-            if len(commands) == 3:
-                filename = commands[2].lstrip('./')[:-1]
-                r = requests.get('{}/commands/dumplog?tx_num={}&filename={}'.format(TX_SERVER_URL, tx_num, filename))
-                assert r.status_code == 200
-
-            elif len(commands) == 4:
+        try:
+            if command == 'ADD':
                 user_id = commands[2]
-                filename = commands[3].lstrip('./')[:-1]
-                r = requests.get('{}/commands/dumplog?tx_num={}&userid={}&filename={}'.format(TX_SERVER_URL, tx_num, user_id, filename))
-                assert r.status_code == 200
+                amount  = commands[3]
+                r = requests.get('{}/commands/add?tx_num={}&userid={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, amount))
+                #assert r.status_code == 200
+
+            elif command == 'QUOTE':
+                user_id = commands[2]
+                stock_symbol = commands[3]
+                r = requests.get('{}/commands/quote?tx_num={}&userid={}&stocksymbol={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol))
+                #assert r.status_code == 200
+
+            elif command == 'BUY':
+                user_id = commands[2]
+                stock_symbol = commands[3]
+                amount = commands[4]
+                r = requests.get('{}/commands/buy?tx_num={}&userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol, amount))
+                #assert r.status_code == 200
+
+            elif command == 'COMMIT_BUY':
+                user_id = commands[2]
+                r = requests.get('{}/commands/commit_buy?tx_num={}&userid={}'.format(TX_SERVER_URL, tx_num, user_id))
+                #assert r.status_code == 200
+
+            elif command == 'CANCEL_BUY':
+                user_id = commands[2]
+                r = requests.get('{}/commands/cancel_buy?tx_num={}&userid={}'.format(TX_SERVER_URL, tx_num, user_id))
+                #assert r.status_code == 200
+
+            elif command == 'SELL':
+                user_id = commands[2]
+                stock_symbol = commands[3]
+                amount = commands[4]
+                r = requests.get('{}/commands/sell?tx_num={}&userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol, amount))
+                #assert r.status_code == 200
+
+            elif command == 'COMMIT_SELL':
+                user_id = commands[2]
+                r = requests.get('{}/commands/commit_sell?tx_num={}&userid={}'.format(TX_SERVER_URL, tx_num, user_id))
+                #assert r.status_code == 200
+
+            elif command == 'DISPLAY_SUMMARY':
+                user_id = commands[2]
+                r = requests.get('{}/commands/display_summary?tx_num={}&userid={}'.format(TX_SERVER_URL, tx_num, user_id))
+                #print(r.content)
+                #assert r.status_code == 200
+
+            elif command == 'CANCEL_SELL':
+                user_id = commands[2]
+                r = requests.get('{}/commands/cancel_sell?tx_num={}&userid={}'.format(TX_SERVER_URL, tx_num, user_id))
+                #assert r.status_code == 200
+
+            elif command == 'SET_BUY_AMOUNT':
+                user_id = commands[2]
+                stock_symbol = commands[3]
+                amount = commands[4]
+                r = requests.get('{}/commands/set_buy_amount?tx_num={}&userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol, amount))
+                #assert r.status_code == 200
+
+            elif command == 'CANCEL_SET_BUY':
+                user_id = commands[2]
+                stock_symbol = commands[3]
+                r = requests.get('{}/commands/cancel_set_buy?tx_num={}&userid={}&stocksymbol={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol))
+                #assert r.status_code == 200
+
+            elif command == 'SET_BUY_TRIGGER':
+                user_id = commands[2]
+                stock_symbol = commands[3]
+                amount = commands[4]
+                r = requests.get('{}/commands/set_buy_trigger?tx_num={}&userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol, amount))
+                #assert r.status_code == 200
+
+            elif command == 'SET_SELL_AMOUNT':
+                user_id = commands[2]
+                stock_symbol = commands[3]
+                amount = commands[4]
+                r = requests.get('{}/commands/set_sell_amount?tx_num={}&userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol, amount))
+                #assert r.status_code == 200
+
+            elif command == 'SET_SELL_TRIGGER':
+                user_id = commands[2]
+                stock_symbol = commands[3]
+                amount = commands[4]
+                r = requests.get('{}/commands/set_sell_trigger?tx_num={}&userid={}&stocksymbol={}&amount={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol, amount))
+                #assert r.status_code == 200
+
+            elif command == 'CANCEL_SET_SELL':
+                user_id = commands[2]
+                stock_symbol = commands[3]
+                r = requests.get('{}/commands/cancel_set_sell?tx_num={}&userid={}&stocksymbol={}'.format(TX_SERVER_URL, tx_num, user_id, stock_symbol))
+                #assert r.status_code == 200
+
+            elif command == 'DUMPLOG':
+                if len(commands) == 3:
+                    filename = commands[2].lstrip('./')[:-1]
+                    r = requests.get('{}/commands/dumplog?tx_num={}&filename={}'.format(TX_SERVER_URL, tx_num, filename))
+                    #assert r.status_code == 200
+
+                elif len(commands) == 4:
+                    user_id = commands[2]
+                    filename = commands[3].lstrip('./')[:-1]
+                    r = requests.get('{}/commands/dumplog?tx_num={}&userid={}&filename={}'.format(TX_SERVER_URL, tx_num, user_id, filename))
+                    #assert r.status_code == 200
+
+        except requests.exceptions.ConnectionError:
+            print('Connection was forcibly closed, no response received.')
+            pass
 
 threads = []
 
 start_time = time.time()
 for user in users:
-    if user != './testLOG\n':
+    if user not in ['./testLOG\n', './finalLOG\n']:
         t = Thread(target=executeCommandsByUser, args=(user, users))
         threads.append(t)
 
