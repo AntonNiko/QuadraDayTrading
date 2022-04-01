@@ -162,4 +162,7 @@ end_time = time.time()
 print('Finished in {} seconds.'.format(float(end_time-start_time)))
 print('Average TPS: {} '.format(float(num_of_commands/(end_time-start_time))))
 
-executeCommandsByUser('./testLOG\n', users)
+if './testLOG' in users:
+    executeCommandsByUser('./testLOG\n', users)
+elif './finalLOG' in users:
+    executeCommandsByUser('./finalLOG\n', users)
