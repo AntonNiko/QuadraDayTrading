@@ -3,11 +3,11 @@
 
 ## Team Members
 Anton Nikitenko
-
 Nicole Udy
 
 ## Introduction
-Quadra Day Trading is the term project that implements the specification detailed [here](https://www.ece.uvic.ca/~seng468/CourseProject.pdf). 
+Quadra Day Trading is the term project that implements the specification detailed [here](https://www.ece.uvic.ca/~seng468/CourseProject.pdf). This Readme document
+also serves as the documentation for the system.
 
 ## Pre-requisites
 The system runs on Ubuntu 18/20. The following must be installed:
@@ -71,3 +71,69 @@ To shard the `accounts` and `pending_transactions`:
 sh.shardCollection("day_trading.accounts", {userid: "hashed"})
 sh.shardCollection("day_trading.pending_transactions", {userid: "hashed"})
 ```
+
+## Hardware Requirements
+
+This application runs on an Ubuntu 18/20 operating system (processor difference is irrelevant). For the purposes of this project, our hardware
+requirements include a physical machine on which this application can be run, and optionally a virtual machine (e.g. Virtual Box or VMWare) which
+can run the application on top of a separate operating system like Windows or macOS. The development of this application was done mostly on a physical 
+machine with the following performance specifications:
+
+* AMD Ryzen 7 3800X 8-Core Processor 3.90GHz
+* 32.0GB RAM
+* Ubuntu 20.04 Virtual Box environment with 100GB SSD storage allocated
+* Full connectivity to the internet to download and manage package dependencies
+
+As noted in the performance specifications, the physical hardware must be connected to the internet in order to install, configure, and manage packages such
+as APT packages and PIP packages. This network connectivity may be achieved either on bare-metal by being connected with Wi-Fi or wired ethernet cable, or by 
+configuring a bridged network adapter in the case of Virtual Box. Furthermore, access to a console is necessary to run and test the application. If a monitor 
+attached to the machine is not available, it may be necessary to setup an SSH connection from another machine on the same local network in order to run the 
+application.
+
+## Programming tools, Libraries, Platform
+
+As noted in the report portion of this project, we used several tools to help alleviate development difficulties throughout the duration of this project:
+
+* **Version Control**: Git, hosted on GitHub as a public repository accessible by all team members. This allows distributed development and an integrated location where code reviews and tests can be performed
+* **IDE**: By default we may use any text editor which allows us to develop and test code efficiently. We will mainly use VSCode as it is a lightweight application which allows plugins to be installed that are relevant to our application. If an IDE is not available, we will default to using applications such as nano or Vim to edit code.
+* **Programming Languages**: Python is our main development language due to its simple syntax and large number of libraries. Although it is slower than Java or C#, due to it being an interpreted language, we do not expect significant bottleneck issues.
+* **Testing Tools**: Python’s unittest library is well suited to test and validate our system’s behavior at a component level, for unit and integration tests. In order to perform end-to-end tests with all the system’s components at once, we consider using Python as well to interact with the web application and/or inject workloads to be executed. Python also allows us to easily extract metrics from tests, such as runtime errors & exceptions, and performance metrics. The Test Plan section details the strategy behind testing the system. We also plan to use K6 to perform load testing on our application.
+
+## Architecture (Schema and UML)
+
+We provide the following images to illustrate the architecture of the project and how dependencies interact with each other. The UML System Components Diagram provides an illustration of the interfaces that must be created and used:
+
+![UML1](/images/system_components_diagram.png)
+
+The transaction server UML class diagram shows in a general fashion how the transaction server was built to process incoming requests:
+
+![UML2](/images/transaction_server_uml.png)
+
+Finally, the UML system deployment diagram is a visualization of the placement of the final artifacts of the project (i.e. the containers and external interfaces) when they are being executed in a run time environment.
+
+![UML3](/images/uml_system_deployment_diagram.png)
+
+## Project Timeline
+
+The following timeline shows the milestones that we completed through the duration of this project:
+
+| **Date** | **Event/Deliverable** | **Notes** |
+| ---------- | ----------- | ---------- |
+| Feb 2nd, 2022 | SDS - Report I | Initial revision of SDS before prototyping and implementation |
+| Feb 2nd, 2022 | Presentation I | Initial presentation summarizing Report I contents |
+| Mar 16th, 2022 | SDS - Report II | Revision of SDS |
+| Mar 16th, 2022 | Individual Contribution Report | | 
+| Apr 6th, 2022 | Final Presentation | |
+| Apr 13th, 2022 | SDS - Final Report | Final version of the SDS report reflecting the final implementation of the system |
+| Apr 13th, 2022 | Completed Project Source & Documentation | Submit code with instructions to run, Github link, and any accompanying documentation |
+
+## Team Member Responsibility
+
+The following are the responsibilities each team member had for the duration of the project:
+
+| **Team Member** | **Responsibilities** |
+| --------------- | -------------------- |
+| Nicole Udy | System Testing (unit/integration/end-to-end, Security measures, User Interface, Database Development and Deployment, Project write-ups |
+| Anton Nikitenko | Development of Transaction Server, Containerization and scalability of server, Continuous Integration (CI), Web Application, Project write-ups, Logfile generation |
+
+## Scalability Analysis and Fault Tolerance
