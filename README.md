@@ -137,3 +137,12 @@ The following are the responsibilities each team member had for the duration of 
 | Anton Nikitenko | Development of Transaction Server, Containerization and scalability of server, Continuous Integration (CI), Web Application, Project write-ups, Logfile generation |
 
 ## Scalability Analysis and Fault Tolerance
+
+The following table shows the runtime results from running the workloads for 1, 10, 10,000 users. It can be seen that the time taken by running the workload for 10 users is much greater than for 1 user.  This is because of the larger number of commands needing to be processed. It can also be seen that the transactions per second are larger for the larger workload. This is due to the increased number of users of which were provided their own threads. Conconcureny and sharding were used to greatly reduce these numbers. As the final workload was 1,118,480  transactions this was the maximum transaction throughput seen. This number of transactions were successfully processed and would not have been possible without the measures we took to scale our project. All of the workloads that were run on the system are shown in the table below. It can be seen that as the number of users increases, and after sharding and addition of redis cache, transactions per second increased significantly. The transactions per second for the 1 and 10 user workloads that use sharding are actually larger than the transactions per second that do not use sharding. This is most likely due to sharding creating overhead at this small number of users. It can be seen though that the benefits of sharding and using the redis cache are seen when running the 10,000 user workload. During this workload, transactions per second increase significantly. Therefore, we successfully scaled our application.
+
+| **Workload File Number of Users** | **Number of Transactions** | **Time Taken (without sharding and redis) (s)** | **Time Taken (with sharding and redis) (s)** | **Average Transactions per Second (without sharding and redis)** | **Average Transactions per Second (with sharding and redis)** |
+| --------------- | -------------------- | -------------------- | -------------------- | -------------------- | -------------------- |
+| 1 | 100 | 28 | 41 | 3.5 | 2.8 |
+| 10 | 10,000 | 408 | 293 | 24.5 | 34.1 |
+| 10,000 | 1,118,480 | 4,067 | 3,550 | 275 | 315 |
+
