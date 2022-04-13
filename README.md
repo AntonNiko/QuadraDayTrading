@@ -146,3 +146,16 @@ The following table shows the runtime results from running the workloads for 1, 
 | 10 | 10,000 | 408 | 293 | 24.5 | 34.1 |
 | 10,000 | 1,118,480 | 4,067 | 3,550 | 275 | 315 |
 
+The failures that were injected into the system were to test our load balancer and our MongoDB instances as these are the redundant parts of our system. In order to test the load balancer we stopped one of the running docker containers that hosts one of the transaction servers. The expected result was that all of the transactions would be routed and processed by the remaining transaction server. However, it would be expected that it would take more time (roughly twice as much) to process these transactions because concurrent processing is no longer possible. This was what was seen when running the 10 user workload. These results are shown in the table below where the 10 user workload was run first with both running transaction servers and then secondly, with only one running transaction server. It can be seen that none of the transactions were dropped, so all traffic was processed by the remaining transaction server. However, the time taken did increase, which was expected. However, it did not double. This is probably due to overhead in the system that is not just from the transactions. Therefore, the load balancer is fault tolerant.
+
+| **Number of Transaction Servers** | **Number of Transactions Processed** | **Time Taken (s)** | **Average Transactions per Second)** |
+| --------------- | -------------------- | -------------------- | -------------------- |
+| 1 | 10,000 | 285 | 35 |
+| 2 | 10,000 | 276 | 36 |
+
+In order to test our mongodb instances we stopped one of the running docker containers that hosts one of the two mongodb instances. The expected result is that all of the traffic that was routed to this instance would instead be routed to the healthy instance. We would expect a performance hit as well. This experiment was performed and the results are shown in the table belo. First, the 10 user workload was run while both mongodb instances were healthy and then one of the instances was stopped and the workload was run again. As you can see the number of transactions processed stayed the same while the time to process the transactions roughly doubled with only one mongodb instance. This was expected because now mongodb actions cannot be handled concurrently. This means that the traffic from the transaction server that usually flows to this mongodb instance was now routed and serviced by the other instance. Therefore, our database instances for our system are also fault tolerant.
+
+| **Number of MongoDB Instances** | **Number of Transactions Processed** | **Time Taken (s)** | **Average Transactions per Second)** |
+| --------------- | -------------------- | -------------------- | -------------------- |
+| 1 | 10,000 | 603 | 15 |
+| 2 | 10,000 | 276 | 36 |
