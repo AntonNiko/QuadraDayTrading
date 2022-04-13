@@ -137,3 +137,29 @@ The following are the responsibilities each team member had for the duration of 
 | Anton Nikitenko | Development of Transaction Server, Containerization and scalability of server, Continuous Integration (CI), Web Application, Project write-ups, Logfile generation |
 
 ## Scalability Analysis and Fault Tolerance
+
+A system is fault tolerant if a failure in a component doesn’t result in the failure of the system. Our system is fault tolerant due to the load balancer and redundant transaction servers. Our system is also fault tolerant due to MongoDB, implemented for the database container. The load balancer allows for redundancy as well as consistency between docker containers. Therefore, if one of the transaction containers fails, then we have multiple other containers that have the same information and can keep processing transactions. MongoDB also natively supports fault tolerance by keeping multiple copies of data on different servers (replication). Therefore, if one server goes down, then the system can still operate with the working servers. If faults occur in the system, our load balancer will route traffic away from the affected node until it is replaced.
+
+The failures that were injected into the system were to test our load balancer and our MongoDB instances as these are the redundant parts of our system. In order to test the load balancer we stopped one of the running docker containers that hosts one of the transaction servers. The expected result was that all of the transactions would be routed and processed by the remaining transaction server. However, it would be expected that it would take more time (roughly twice as much) to process these transactions because concurrent processing is no longer possible. This was what was seen when running the 10 user workload. These results are shown in table 2 where the 10 user workload was run first with both running transaction servers and then secondly, with only one running transaction server. It can be seen that none of the transactions were dropped, so all traffic was processed by the remaining transaction server. However, the time taken did increase, which was expected. However, it did not double. This is probably due to overhead in the system that is not just from the transactions. Therefore, the load balancer is fault tolerant.
+
+| **Num of tx servers** | **Num of tx processed** | **Time Taken (s)** | **Average tx per second** |
+| ------------ | ---------- | ---------- | ---------- |
+| 1 | 10,000 | 285 | 35 |
+| 2 | 10,000 | 276 | 36 |
+
+In order to test our mongodb instances we stopped one of the running docker containers that hosts one of the two mongodb instances. The expected result is that all of the traffic that was routed to this instance would instead be routed to the healthy instance. We would expect a performance hit as well. This experiment was performed and the results are shown in table 3. First, the 10 user workload was run while both mongodb instances were healthy and then one of the instances was stopped and the workload was run again. As you can see the number of transactions processed stayed the same while the time to process the transactions roughly doubled with only one mongodb instance. This was expected because now mongodb actions cannot be handled concurrently. This means that the traffic from the transaction server that usually flows to this mongodb instance was now routed and serviced by the other instance. Therefore, our database instances for our system are also fault tolerant.
+
+| **Num of MongoDB instances** | **Num of tx processed** | **Time Taken (s)** | **Average tx per second** |
+| ------------ | ---------- | ---------- | ---------- |
+| 1 | 10,000 | 603 | 15 |
+| 2 | 10,000 | 285 | 38 |
+
+## Log Results & Transaction Throughput
+
+The following table shows the runtime results from running the workloads for 1, 10, 10,000 users. It can be seen that the time taken by running the workload for 10 users is much greater than for 1 user.  This is because of the larger number of commands needing to be processed. It can also be seen that the transactions per second are larger for the larger workload. This is due to the increased number of users of which were provided their own threads. Concurrency and sharding were used to greatly reduce these numbers. As the final workload was 1,118,480  transactions this was the maximum transaction throughput seen. This number of transactions were successfully processed and would not have been possible without the measures we took to scale our project. All of the workloads that were run on the system are shown in table 4. It can be seen that as the number of users increases, and after sharding and addition of redis cache, transactions per second increased significantly. The transactions per second for the 1 and 10 user workloads that use sharding are actually larger than the transactions per second that do not use sharding. This is most likely due to sharding creating overhead at this small number of users. It can be seen though that the benefits of sharding and using the redis cache are seen when running the 10,000 user workload. During this workload, transactions per second increase significantly. Therefore, we successfully scaled our application. 
+
+| **Workload File Number of Users** | **Num of Tx** | **Time taken (w/o sharding and Redis) (s)** | **Time taken (w/ sharding and Redis) (s)** | **Average tx per sec (w/o sharding and Redis)** | **Average tx per sec (w/ sharding and Redis)** |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 100 | 28 | 41 | 3.5 | 2.8 |
+| 10 | 10,000 | 408 | 293 | 24.5 | 34.1 |
+| 10,000 | 1,1118,480 | 4,067 | 3,550 | 275 | 315 |
